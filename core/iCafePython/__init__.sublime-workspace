@@ -1,0 +1,932 @@
+{
+	"auto_complete":
+	{
+		"selected_items":
+		[
+			[
+				"has",
+				"hashpos"
+			],
+			[
+				"imag",
+				"imagenamepis"
+			],
+			[
+				"dis",
+				"dist"
+			],
+			[
+				"star",
+				"startnode"
+			],
+			[
+				"getl",
+				"getlandmark"
+			],
+			[
+				"lan",
+				"landmark"
+			],
+			[
+				"se",
+				"settingroot"
+			],
+			[
+				"swc",
+				"swci"
+			],
+			[
+				"vessn",
+				"vessnakei"
+			],
+			[
+				"me",
+				"meanx1"
+			],
+			[
+				"end",
+				"endslicei"
+			],
+			[
+				"yseq",
+				"yseqsmooth"
+			],
+			[
+				"seq",
+				"seqslicei"
+			],
+			[
+				"clas",
+				"classtmp"
+			],
+			[
+				"sna",
+				"snakelist"
+			],
+			[
+				"file",
+				"filenamesolo"
+			],
+			[
+				"start",
+				"starttype"
+			],
+			[
+				"poin",
+				"pointz"
+			],
+			[
+				"poi",
+				"pointy"
+			],
+			[
+				"cartimg",
+				"cartimgori"
+			],
+			[
+				"QVS",
+				"QVSID"
+			],
+			[
+				"ex",
+				"ExamID"
+			],
+			[
+				"carse",
+				"cartseg"
+			],
+			[
+				"area",
+				"areaWALL"
+			],
+			[
+				"patch",
+				"patchdepth"
+			],
+			[
+				"class",
+				"classes"
+			],
+			[
+				"rt",
+				"rtbox"
+			],
+			[
+				"yolomode",
+				"yolomodelname"
+			],
+			[
+				"autos",
+				"autoselleftcheckbx"
+			],
+			[
+				"con",
+				"condition"
+			]
+		]
+	},
+	"buffers":
+	[
+		{
+			"file": "/F/tensorflow/LiChen/iCafe/GNN/setup.py",
+			"settings":
+			{
+				"buffer_size": 2287,
+				"line_ending": "Unix"
+			}
+		},
+		{
+			"file": "/F/tensorflow/LiChen/iCafe/GNN/graph_nets/demos/models.py",
+			"settings":
+			{
+				"buffer_size": 4847,
+				"line_ending": "Unix"
+			}
+		},
+		{
+			"file": "icafe.py",
+			"settings":
+			{
+				"buffer_size": 6836,
+				"line_ending": "Windows"
+			}
+		},
+		{
+			"file": "artlabel/ref.py",
+			"settings":
+			{
+				"buffer_size": 8700,
+				"line_ending": "Windows"
+			}
+		},
+		{
+			"file": "__init__.py",
+			"settings":
+			{
+				"buffer_size": 188,
+				"line_ending": "Windows"
+			}
+		},
+		{
+			"file": "/F/tensorflow/LiChen/3DM/FRCNNPytorch/lib/datasets/careii.py",
+			"settings":
+			{
+				"buffer_size": 15380,
+				"line_ending": "Unix"
+			}
+		},
+		{
+			"file": "/D/tensorflow/LiChen/BBox-Label-Tool-master/dcmArteryIPHraw.py",
+			"settings":
+			{
+				"buffer_size": 33307,
+				"line_ending": "Unix"
+			}
+		}
+	],
+	"build_system": "",
+	"command_palette":
+	{
+		"height": 392.0,
+		"selected_items":
+		[
+			[
+				"",
+				"Auto indent"
+			],
+			[
+				"install",
+				"Package Control: Install Package"
+			],
+			[
+				"pack",
+				"Package Control: Install Package"
+			],
+			[
+				"Package Control: ",
+				"Package Control: Add Repository"
+			],
+			[
+				"Package Control: CTags",
+				"Package Control: List Packages"
+			]
+		],
+		"width": 504.0
+	},
+	"console":
+	{
+		"height": 190.0,
+		"history":
+		[
+			"import urllib.request,os,hashlib; h = 'df21e130d211cfc94d9b0905775a7c0f' + '1e3d39e33b79698005270310898eea76'; pf = 'Package Control.sublime-package'; ipp = sublime.installed_packages_path(); urllib.request.install_opener( urllib.request.build_opener( urllib.request.ProxyHandler()) ); by = urllib.request.urlopen( 'http://packagecontrol.io/' + pf.replace(' ', '%20')).read(); dh = hashlib.sha256(by).hexdigest(); print('Error validating download (got %s instead of %s), please try manual install' % (dh, h)) if dh != h else open(os.path.join( ipp, pf), 'wb' ).write(by)",
+			"class OnOpenCommand(sublime_plugin.EventListener):    def on_load(self, view):      if view.file_name().lower().endswith(\".xml\") :      #print \"{0}: Auto indenting {1} with Indent XML's auto_indent command\".format(__file__, view.file_name())      view.run_command(\"auto_indent\")             #print \"{0}: Auto indenting {1} with IndentX's basic_indent_tags command\".format(__file__, view.file_name())      view.run_command(\"basic_indent_tags\")",
+			"class OnOpenCommand(sublime_plugin.EventListener):  ",
+			"import sublime, sublime_plugin",
+			"import urllib.request,os,hashlib; h = 'df21e130d211cfc94d9b0905775a7c0f' + '1e3d39e33b79698005270310898eea76'; pf = 'Package Control.sublime-package'; ipp = sublime.installed_packages_path(); urllib.request.install_opener( urllib.request.build_opener( urllib.request.ProxyHandler()) ); by = urllib.request.urlopen( 'http://packagecontrol.io/' + pf.replace(' ', '%20')).read(); dh = hashlib.sha256(by).hexdigest(); print('Error validating download (got %s instead of %s), please try manual install' % (dh, h)) if dh != h else open(os.path.join( ipp, pf), 'wb' ).write(by)",
+			"import urllib.request,os; pf = 'Package Control.sublime-package'; ipp = sublime.installed_packages_path(); urllib.request.install_opener( urllib.request.build_opener( urllib.request.ProxyHandler()) ); open(os.path.join(ipp, pf), 'wb').write(urllib.request.urlopen( 'http://sublime.wbond.net/' + pf.replace(' ','%20')).read())"
+		]
+	},
+	"distraction_free":
+	{
+		"menu_visible": true,
+		"show_minimap": false,
+		"show_open_files": false,
+		"show_tabs": false,
+		"side_bar_visible": false,
+		"status_bar_visible": false
+	},
+	"file_history":
+	[
+		"/F/tensorflow/LiChen/iCafe/iCafePython/_graph.py",
+		"/F/tensorflow/LiChen/iCafe/iCafePython/artlabel/gnn.py",
+		"/D/LiChen/icafebackup/WALLI/55_WALLI-V-01-2_M/setting_TH_55_WALLI-V-01-2_M.xml",
+		"/F/tensorflow/LiChen/iCafe/GNN/graph_nets/demos/cnfx.py",
+		"/F/tensorflow/LiChen/3DM/FRCNN/keras_frcnn/config.py",
+		"/F/tensorflow/LiChen/3DM/FRCNNPytorch/FRCNN3-1/faster_rcnn_1_4_3647/TestBB/P196/P196_352.txt",
+		"/F/tensorflow/LiChen/3DM/FRCNNPytorch/lib/setup.py",
+		"/F/tensorflow/LiChen/iCafe/iCafePython/__init__.sublime-workspace",
+		"/F/tensorflow/LiChen/iCafe/iCafePython/__init__.py",
+		"/F/tensorflow/LiChen/iCafe/iCafePython/__init__.sublime-project",
+		"/F/tensorflow/LiChen/iCafe/iCafePython/_vestype.py",
+		"/E/iCafe/result/WALLI/55_WALLI-V-01-1_M/tracing_raw_ves_TH_55_WALLI-V-01-1_M.swc",
+		"/E/iCafe/result/WALLI/55_WALLI-V-01-1_M/setting_TH_55_WALLI-V-01-1_M.xml",
+		"/E/iCafe/result/WALLI/55_WALLI-V-01-2_M/setting_TH_55_WALLI-V-01-2_M.xml",
+		"/E/iCafe/result/CROPCheck/58_ZhangMinhua_F/setting_TH_58_ZhangMinhua_F.xml",
+		"/E/iCafe/result/BRAVE/0_7016_U/tracing_raw_ves_TH_0_7016_U.swc",
+		"/F/tensorflow/LiChen/3DM/FasterRCNN/utils.py",
+		"/F/tensorflow/LiChen/3DM/FasterRCNN/keras_frcnn/data_generators.py",
+		"/F/tensorflow/LiChen/3DM/FasterRCNN/keras_frcnn/roi_helpers.py",
+		"/E/iCafe/result/UNC/0_Normal002_U/tracing_raw_ves_TH_0_Normal002_U.swc",
+		"/D/data/UNC/Normal-002/VascularNetwork.tre",
+		"/E/iCafe/result/UNC/0_Normal018_U/tracing_raw_ves_TH_0_Normal018_U.swc",
+		"/D/data/UNC/Normal010/VascularNetwork.tre",
+		"/E/iCafe/result/BRAVE/0_7016_U/tracing_raw_ves_TH_0_7016_U.swd",
+		"/F/tensorflow/LiChen/iCafe/GNN/graph_nets/demos/shortest_path.ipynb",
+		"/F/tensorflow/LiChen/3DM/FRCNNPytorch/_init_paths.py",
+		"/F/tensorflow/LiChen/3DM/LATTE/temp/CAREIIMERGE/results/VOC2000/Main/comp4_det_test_Artery.txt",
+		"/F/tensorflow/LiChen/3DM/YoloM7-4/TestBB/P21/P21_334.txt",
+		"/F/tensorflow/LiChen/3DM/FRCNNPytorch/lib/datasets/factory.py",
+		"/F/tensorflow/LiChen/3DM/FRCNNPytorch/lib/datasets/careii.py",
+		"/F/tensorflow/LiChen/3DM/LATTE/temp/CAREIIMERGE/train - Copy.txt",
+		"/F/tensorflow/LiChen/3DM/LATTE/temp/CAREIIMERGE/train.txt",
+		"/F/tensorflow/LiChen/3DM/FRCNNPytorch/lib/model/__init__.py",
+		"/F/tensorflow/LiChen/3DM/FRCNNPytorch/lib/model/nms/gpu_nms.cpp",
+		"/F/tensorflow/LiChen/3DM/FRCNNPytorch/lib/model/roi_layers/__init__.py",
+		"/F/tensorflow/LiChen/3DM/FRCNN/keras_frcnn/data_generators.py",
+		"/F/tensorflow/LiChen/3DM/FRCNNPytorch/lib/model/faster_rcnn/faster_rcnn.py",
+		"/F/tensorflow/LiChen/3DM/FRCNNPytorch/lib/model/NMS-master/setup3.py",
+		"/F/tensorflow/LiChen/3DM/FRCNNPytorch/lib/model/nms/setup1.py",
+		"/F/tensorflow/LiChen/3DM/FRCNNPytorch/lib/model/nms/__init__.py",
+		"/F/tensorflow/LiChen/3DM/FRCNNPytorch/lib/model/roi_layers/nms.py",
+		"/F/tensorflow/LiChen/3DM/FRCNNPytorch/requirements.txt",
+		"/E/iCafe/result/BRAVE/0_7001_U/tracing_raw_ves_TH_0_7001_U.swc",
+		"/F/tensorflow/LiChen/3DM/FasterRCNN/frcnn-from-scratch-with-keras-master/train_frcnn.py",
+		"/F/tensorflow/LiChen/3DM/YoloM7-4/TestBB/P21/P21_341.txt",
+		"/F/tensorflow/LiChen/3DM/YoloM7-4/TestBB/P732/P732_358.txt",
+		"/E/iCafe/result/BRAVE/0_7016_U/tracing_ves_TH_0_7016_U.swc",
+		"/E/iCafe/result/BRAVE/0_7040_U/tracing_ves_TH_0_7040_U.swc",
+		"/E/iCafe/result/BRAVE/0_7040_U/setting_TH_0_7040_U.xml",
+		"/E/iCafe/result/BRAVE/0_7052_U/tracing_ves_TH_0_7052_U.swc",
+		"/E/iCafe/result/BRAVE/0_7001_U/tracing_ves_TH_0_7001_U.swc",
+		"/F/tensorflow/LiChen/3DM/LATTE/temp/CROPMERGE/3Dmergebb/CROP006/CROP006_389.txt",
+		"/E/iCafe/result/CROPMERGE/0_CROP006_U/tracing_raw_ves_TH_0_CROP006_U.swc",
+		"/F/tensorflow/LiChen/3DM/LATTE/BB.py",
+		"/F/tensorflow/LiChen/UTL/UTL.py",
+		"/F/tensorflow/LiChen/3DM/LATTE/utils.py",
+		"/F/tensorflow/LiChen/3DM/LATTE/IQAfunc.py",
+		"/Y/Hongjj/IQA/IQA.py",
+		"/D/tensorflow/LiChen/BBox-Label-Tool-master/dcmArteryIPH.py",
+		"/D/tensorflow/LiChen/BBox-Label-Tool-master/dcmArteryIPHraw.py",
+		"/F/tensorflow/LiChen/VW/VWS.py",
+		"/F/tensorflow/LiChen/3DM/FasterRCNN/frcnn-from-scratch-with-keras-master/test_frcnn.py",
+		"/F/tensorflow/LiChen/3DM/FasterRCNN/keras_frcnn/config.py",
+		"/F/tensorflow/LiChen/3DM/LATTE/Tracklet.py",
+		"/F/tensorflow/LiChen/basic-yolo-keras-master/DB.py",
+		"/F/tensorflow/LiChen/3DM/LATTE/Yolo.py",
+		"/F/tensorflow/LiChen/3DM/FasterRCNN/frcnn-from-scratch-with-keras-master/eval.ipynb",
+		"/E/iCafe/result/HarborViewT1/0_ID3_F/CASCADE/EID3S101_L.QVS",
+		"/E/iCafe/result/HarborViewT1/0_ID4_F/CASCADE/EID4S101_L.QVS",
+		"/F/tensorflow/LiChen/3DM/FasterRCNN/frcnn-from-scratch-with-keras-master/requirements.txt",
+		"/F/tensorflow/LiChen/3DM/FasterRCNN/frcnn-from-scratch-with-keras-master/utils.py",
+		"/Y/Hongjj/IQA/functions.py",
+		"/F/tensorflow/LiChen/3DM/LATTE/temp/CROPMERGE/3Dmergebb/CROP006/CROP006_486.txt",
+		"/E/iCafe/result/LATTE/0_P21_U/tracing_ves_TH_0_P21_U.swc",
+		"/E/iCafe/result/CROPMERGE/0_CROP009_U/tracing_raw_ves_TH_0_CROP009_U.swc",
+		"/E/iCafe/result/IPHMERGE/0_IPHCLIN001-B_U/tracing_ves_TH_0_IPHCLIN001-B_U.swc",
+		"/E/iCafe/result/IPHMERGE/0_IPHCLIN001-B_U/tracing_raw_ves_TH_0_IPHCLIN001-B_U.swc",
+		"/E/iCafe/result/LATTE/0_P21_U/color_scheme_TH_0_P21_U.txt",
+		"/F/tensorflow/LiChen/3DM/LATTE/temp/CROPMERGE/3Dmergebbclass/CROP006/CROP006_344.txt",
+		"/F/tensorflow/LiChen/3DM/LATTE/temp/CROPMERGE/3Dmergebbrf/CROP006/CROP006_357.txt",
+		"/F/tensorflow/LiChen/3DM/LATTE/temp/CROPMERGE/3Dmergebb/CROP006/CROP006_432.txt",
+		"/F/tensorflow/LiChen/Plaque/CareIISym/Sortdata.py",
+		"/F/tensorflow/LiChen/3DM/LATTE/temp/IPHMERGE/3Dmergebb/IPHCLIN013-B/IPHCLIN013-B_350.txt",
+		"/F/tensorflow/LiChen/3DM/LATTE/temp/RenjiMERGE/3Dmergebbclass/2119705/2119705_440.txt",
+		"/D/LiChen/LATTE/IPH.csv",
+		"/D/LiChen/LATTE/Renji.csv",
+		"/F/tensorflow/LiChen/VW/StackPolar.py",
+		"/F/tensorflow/LiChen/VW/evalmetric.py",
+		"/F/tensorflow/LiChen/FRAPPE/Tracklet.py",
+		"/F/tensorflow/LiChen/basic-yolo-keras-master/Yolo.py",
+		"/F/tensorflow/LiChen/FRAPPE/BB.py",
+		"/D/tensorflow/LiChen/BBox-Label-Tool-master/dcmArteryType.py",
+		"/F/tensorflow/LiChen/FRAPPE/Func.py",
+		"/F/tensorflow/LiChen/3DM/LATTE/temp/3Dmergebb/IPHCLIN001/IPHCLIN001_120.txt",
+		"/F/tensorflow/LiChen/3DM/LATTE/temp/3Dmergebbrf/IPHCLIN001/IPHCLIN001_374.txt",
+		"/F/tensorflow/LiChen/3DM/LATTE/temp/RenjiMERGE/3Dmergebb/2597188/2597188_300.txt",
+		"/F/tensorflow/LiChen/3DM/LATTE/temp/RenjiMERGE/3Dmergebb/2597188/2597188_318.txt",
+		"/F/tensorflow/LiChen/3DM/LATTE/temp/RenjiMERGE/3Dmergebb/2597188/2597188_319.txt",
+		"/F/tensorflow/LiChen/3DM/LATTE/temp/RenjiMERGE/3Dmergebb/2597188/2597188_317.txt",
+		"/F/tensorflow/LiChen/3DM/LATTE/temp/RenjiMERGE/3Dmergebb/2597188/2597188_306.txt",
+		"/F/tensorflow/LiChen/3DM/LATTE/temp/RenjiMERGE/3Dmergebb/2597188/2597188_305.txt",
+		"/F/tensorflow/LiChen/3DM/LATTE/temp/RenjiMERGE/3Dmergebb/2597188/2597188_299.txt",
+		"/F/tensorflow/LiChen/3DM/LATTE/temp/RenjiMERGE/3Dmergebb/2597188/2597188_303.txt",
+		"/F/tensorflow/LiChen/3DM/LATTE/temp/RenjiMERGE/3Dmergebb/2597188/2597188_116.txt",
+		"/F/tensorflow/LiChen/3DM/LATTE/temp/RenjiMERGE/3Dmergebb/2597188/2597188_423.txt",
+		"/F/tensorflow/LiChen/3DM/LATTE/temp/3Dmergebbrf/IPHCLIN001/IPHCLIN001_121.txt",
+		"/F/tensorflow/LiChen/3DM/LATTE/temp/3Dmergebbrf/IPHCLIN001/IPHCLIN001_120.txt",
+		"/F/tensorflow/LiChen/basic-yolo-keras-master/YoloPALM1/predbbrf/T1Kneeknee_artery_analysis_P266_E11988/E11988S101I48.txt",
+		"/F/tensorflow/LiChen/3DM/LATTE/temp/3Dmergebb/IPHCLIN107/IPHCLIN107_328.txt",
+		"/D/LiChen/3DMerge/3DmergeFlabel/P2/P2_E57698_y_352.txt",
+		"/V/96tp29/cascade/96/9911265/20130408L/E20130408LS101_L.QVS",
+		"/E/iCafe/result/RealmReg/0_15-06-TP1_U/setting_TH_0_15-06-TP1_U.xml",
+		"/F/tensorflow/LiChen/VW/CASCADE/EWALLI-V-13-1-BS101_L.QVS",
+		"/F/tensorflow/LiChen/VW/CASCADE/EWALLI-V-13-1-BS101_L.QVS.QVS",
+		"/E/iCafe/result/HarborViewT1/0_ID2_F/CASCADE/EID2S101_L.QVS",
+		"/E/iCafe/result/HarborViewT1/0_ID2_F/setting_TH_0_ID2_F.xml",
+		"/E/iCafe/result/HarborViewT1/0_ID3_F/setting_TH_0_ID3_F.xml",
+		"/E/iCafe/result/HarborViewT1/0_ID1_M/setting_TH_0_ID1_M.xml",
+		"/E/iCafe/result/LATTE/0_P935_U/tracing_ves_TH_0_P935_U.swc",
+		"/E/iCafe/result/Knee/0_9911265-20130408L_U/setting_TH_0_9911265-20130408L_U.xml",
+		"/E/iCafe/result/Knee/0_20130408L_U/tracing_raw_ves_TH_0_20130408L_U.swc",
+		"/E/iCafe/result/LATTE/0_P910_U/tracing_ves_TH_0_P910_U.swc",
+		"/E/iCafe/result/LATTE/0_P891_U/tracing_ves_TH_0_P891_U.swc",
+		"/E/iCafe/result/LATTE/0_P732_U/tracing_ves_TH_0_P732_U.swc",
+		"/E/iCafe/result/LATTE/0_P576_U/tracing_ves_TH_0_P576_U.swc",
+		"/E/iCafe/result/LATTE/0_P481_U/tracing_ves_TH_0_P481_U.swc",
+		"/E/iCafe/result/LATTE/0_P470_U/tracing_ves_TH_0_P470_U.swc",
+		"/E/iCafe/result/LATTE/0_P438_U/tracing_ves_TH_0_P438_U.swc"
+	],
+	"find":
+	{
+		"height": 38.0
+	},
+	"find_in_files":
+	{
+		"height": 102.0,
+		"where_history":
+		[
+			"F:\\tensorflow\\LiChen\\3DM\\FRCNNPytorch",
+			"F:\\tensorflow\\LiChen\\3DM\\FasterRCNN",
+			"F:\\tensorflow\\LiChen\\Plaque",
+			"F:\\tensorflow\\LiChen\\VW,*.ipynb",
+			"D:\\LiChen\\opfront\\src",
+			"X:\\trials\\knee_artery_analysis\\reviews,*.QVJ",
+			"X:\\trials\\knee_artery_analysis\\reviews",
+			"F:\\tensorflow\\LiChen\\FRAPPE",
+			"D:\\tensorflow\\LiChen,*.ipynb",
+			"D:\\tensorflow\\LiChen",
+			"E:\\ITK\\InsightToolkit-4.13.2Build",
+			"E:\\ITK\\InsightToolkit-4.13.2",
+			"D:\\tensorflow\\LiChen,*.ipynb",
+			"D:\\tensorflow\\LiChen",
+			"D:\\VW IMAGES\\capricebaseline\\reviews\\binbin",
+			"D:\\tensorflow\\LiChen\\3DM\\YoloM3-8\\Test\\P257",
+			"D:\\tensorflow\\LiChen,*.ipynb",
+			"D:\\tensorflow\\LiChen",
+			"D:\\tensorflow\\LiChen,*.ipynb",
+			"D:\\tensorflow\\LiChen",
+			"D:\\tensorflow\\LiChen\\3DMerge",
+			"D:\\tensorflow\\LiChen\\basic-yolo-keras-master",
+			"D:\\LiChen\\3DmergeLabel",
+			"D:\\tensorflow\\LiChen",
+			"C:\\Users\\Li\\Anaconda3\\envs\\tf\\Lib\\site-packages\\keras"
+		]
+	},
+	"find_state":
+	{
+		"case_sensitive": false,
+		"find_history":
+		[
+			"loadswc",
+			"landmark",
+			"self.lan",
+			"Nodename",
+			"Nodetype",
+			"_refreshid",
+			"Counter",
+			"load_ves_no_change",
+			"vessnakelist",
+			"landmark",
+			"ArtLabel",
+			"266.051",
+			"270.98",
+			"240.982",
+			"edge",
+			"ID = 236",
+			"ID = 33",
+			"ID = 3",
+			"ID = 236",
+			"axis",
+			"    ",
+			"resamplesnake",
+			"236",
+			"ObjectType = Tube",
+			"'ObjectType = Tube\\n'",
+			"'ObjectType = Tube\\n',",
+			"self.swclist",
+			",\\n",
+			" ",
+			"13,1",
+			"getlandmark",
+			"self.la",
+			"total landmark",
+			".norm(",
+			"vesposmap",
+			"cnode.pid",
+			"352.766",
+			"393.921",
+			"\\n236 ",
+			"236 ",
+			"236",
+			"connect",
+			"connect ",
+			"parse_rec",
+			"annopath",
+			"careii",
+			"parse_rec",
+			"_wri",
+			"_comp_id",
+			"_write_voc_results_file",
+			"_writ",
+			"_get_comp_id",
+			"_write_voc_results_file",
+			"voc_ap",
+			"_get_voc_results_file_template",
+			"gt_",
+			"careii_eval",
+			"voc_eval",
+			"parse_rec",
+			"_load_pascal_annotation",
+			"all_",
+			"index = ",
+			"image_index",
+			"_load_pascal_annotation",
+			"image_index",
+			"Artery",
+			"self._class_to_ind",
+			"_load_pascal_annotation",
+			"cache_path",
+			"cache_path = ",
+			"cache_path",
+			"cfg",
+			"_get_default_path",
+			"_C",
+			"num_rois",
+			"292.55",
+			"107.219",
+			"228.429",
+			"125.900",
+			"simg",
+			"simg(",
+			"    ",
+			"train_on_batch",
+			"vessnakelist",
+			"loadvesnochange",
+			"loadn",
+			"grap",
+			"veslist",
+			"graph",
+			"getlandmark",
+			"settin",
+			"deglist",
+			"215.934",
+			"240.050 25",
+			"322.850 ",
+			"240.050 253.534 119",
+			"deglist",
+			"318.673 223.504 117",
+			"276.892 241.579 114.",
+			"276.892 241.579 114.485",
+			"deglist",
+			"215.934",
+			"48.036 222.132 1",
+			"degl",
+			"deglist",
+			"257.154",
+			"257.154 215.442 95",
+			"256.26",
+			"256.260 218.353 96.115",
+			"256.260 218.353 96.",
+			"deglist",
+			"self.ptlist",
+			"vessnakelist",
+			"852 383.367 183.",
+			"-1",
+			"8.965 273.485 44.6",
+			"-1",
+			"6.394 170.285 46.99",
+			"-1",
+			"graph",
+			"NP",
+			"224.269 239.583 99.5",
+			"nx",
+			"netw",
+			"Snake",
+			"224.269 239.583 99.5",
+			"vesfilename",
+			"generatesnakelist"
+		],
+		"highlight": true,
+		"in_selection": false,
+		"preserve_case": false,
+		"regex": false,
+		"replace_history":
+		[
+			"\\t",
+			"\\],\\n\\[",
+			",",
+			"\\t",
+			".dcm",
+			"plt",
+			"\\t",
+			"ROUND\\(info.resolution\\*SUM\\(case when VesselType in \\($1\\) then A_Diameter\\*TotalLength end\\)/SUM\\(case when VesselType in \\($1\\) then TotalLength end\\),3\\) as `$2 Rad \\(mm\\)`,",
+			"\\t",
+			"1577",
+			"-0$1'",
+			"rot\\['$1'\\]={\\n'c':$2,\\n't':$3,\\n'A':$4}\\n",
+			"S104",
+			"S109",
+			"S101",
+			"S105",
+			"",
+			"getsnakeidnormdirect",
+			"\\t",
+			"self",
+			"\\t",
+			"self.ExamID",
+			"\\t",
+			"$1",
+			"\\t",
+			"gwmodel",
+			"\\t",
+			"bbint",
+			"seqbbint",
+			"\\t",
+			"",
+			"predpatchshape",
+			"pred_polar_batch",
+			"M3R",
+			" ",
+			"\\t",
+			"    ",
+			"targetshape[2]",
+			"targetshape[1]",
+			"targetshape[0]",
+			"yseq",
+			"yseqsmooth",
+			" ",
+			"\\nE",
+			"','",
+			"train",
+			",",
+			"",
+			"50",
+			"D:/LiChen/3DMerge/3Dmergesegs",
+			"P",
+			"",
+			"\\t",
+			"    ",
+			"py",
+			"px",
+			"    ",
+			"tl['$1']=$2",
+			"io.imread",
+			"tl['$1']=$2",
+			"\\t",
+			"\\n",
+			"tl['$1']=$2",
+			"0",
+			"1",
+			"tg['$1']=$2",
+			"1",
+			"0",
+			"tg['$1']=$2",
+			"M",
+			"M[i]",
+			"m[i]",
+			"FN[i]",
+			"FP[i]",
+			"TN[i]",
+			"TP[i]",
+			"\\n",
+			"tl['$1']=$2",
+			"1",
+			"0",
+			"tg['$1']='$2'",
+			"tg['$1']='$2'\\n",
+			"tl['$1']=$2\\n",
+			""
+		],
+		"reverse": false,
+		"show_context": true,
+		"use_buffer2": true,
+		"whole_word": false,
+		"wrap": true
+	},
+	"groups":
+	[
+		{
+			"selected": 2,
+			"sheets":
+			[
+				{
+					"buffer": 0,
+					"file": "/F/tensorflow/LiChen/iCafe/GNN/setup.py",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 2287,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								0,
+								0
+							]
+						],
+						"settings":
+						{
+							"encoding_helper_encoding": "cp1252",
+							"origin_encoding": "ASCII",
+							"syntax": "Packages/Python/Python.tmLanguage",
+							"tab_size": 4,
+							"translate_tabs_to_spaces": true
+						},
+						"translation.x": 0.0,
+						"translation.y": 0.0,
+						"zoom_level": 1.0
+					},
+					"type": "text"
+				},
+				{
+					"buffer": 1,
+					"file": "/F/tensorflow/LiChen/iCafe/GNN/graph_nets/demos/models.py",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 4847,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								3791,
+								3791
+							]
+						],
+						"settings":
+						{
+							"encoding_helper_encoding": "cp1252",
+							"origin_encoding": "ASCII",
+							"syntax": "Packages/Python/Python.tmLanguage",
+							"tab_size": 2,
+							"translate_tabs_to_spaces": true
+						},
+						"translation.x": 0.0,
+						"translation.y": 616.0,
+						"zoom_level": 1.0
+					},
+					"type": "text"
+				},
+				{
+					"buffer": 2,
+					"file": "icafe.py",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 6836,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								3218,
+								3225
+							]
+						],
+						"settings":
+						{
+							"encoding_helper_encoding": "cp1252",
+							"origin_encoding": "ASCII",
+							"syntax": "Packages/Python/Python.tmLanguage",
+							"translate_tabs_to_spaces": false
+						},
+						"translation.x": 0.0,
+						"translation.y": 34.0,
+						"zoom_level": 1.0
+					},
+					"type": "text"
+				},
+				{
+					"buffer": 3,
+					"file": "artlabel/ref.py",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 8700,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								185,
+								173
+							]
+						],
+						"settings":
+						{
+							"encoding_helper_encoding": "cp1252",
+							"origin_encoding": "ASCII",
+							"syntax": "Packages/Python/Python.tmLanguage",
+							"tab_size": 4,
+							"translate_tabs_to_spaces": true
+						},
+						"translation.x": 0.0,
+						"translation.y": 0.0,
+						"zoom_level": 1.0
+					},
+					"type": "text"
+				},
+				{
+					"buffer": 4,
+					"file": "__init__.py",
+					"semi_transient": true,
+					"settings":
+					{
+						"buffer_size": 188,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								0,
+								0
+							]
+						],
+						"settings":
+						{
+							"encoding_helper_encoding": "cp1252",
+							"origin_encoding": "ASCII",
+							"syntax": "Packages/Python/Python.tmLanguage"
+						},
+						"translation.x": 0.0,
+						"translation.y": 0.0,
+						"zoom_level": 1.0
+					},
+					"type": "text"
+				},
+				{
+					"buffer": 5,
+					"file": "/F/tensorflow/LiChen/3DM/FRCNNPytorch/lib/datasets/careii.py",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 15380,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								8186,
+								7957
+							]
+						],
+						"settings":
+						{
+							"encoding_helper_encoding": "cp1252",
+							"origin_encoding": "ASCII",
+							"syntax": "Packages/Python/Python.tmLanguage",
+							"tab_size": 4,
+							"translate_tabs_to_spaces": true
+						},
+						"translation.x": 0.0,
+						"translation.y": 661.0,
+						"zoom_level": 1.0
+					},
+					"type": "text"
+				},
+				{
+					"buffer": 6,
+					"file": "/D/tensorflow/LiChen/BBox-Label-Tool-master/dcmArteryIPHraw.py",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 33307,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								12066,
+								12066
+							]
+						],
+						"settings":
+						{
+							"encoding_helper_encoding": "cp1252",
+							"origin_encoding": "ASCII",
+							"syntax": "Packages/Python/Python.tmLanguage",
+							"tab_size": 4,
+							"translate_tabs_to_spaces": true
+						},
+						"translation.x": 0.0,
+						"translation.y": 5877.0,
+						"zoom_level": 1.0
+					},
+					"type": "text"
+				}
+			]
+		}
+	],
+	"incremental_find":
+	{
+		"height": 30.0
+	},
+	"input":
+	{
+		"height": 42.0
+	},
+	"layout":
+	{
+		"cells":
+		[
+			[
+				0,
+				0,
+				1,
+				1
+			]
+		],
+		"cols":
+		[
+			0.0,
+			1.0
+		],
+		"rows":
+		[
+			0.0,
+			1.0
+		]
+	},
+	"menu_visible": true,
+	"project": "__init__.sublime-project",
+	"replace":
+	{
+		"height": 70.0
+	},
+	"save_all_on_build": true,
+	"select_file":
+	{
+		"height": 0.0,
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"select_project":
+	{
+		"height": 0.0,
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"select_symbol":
+	{
+		"height": 0.0,
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"settings":
+	{
+	},
+	"show_minimap": true,
+	"show_open_files": false,
+	"show_tabs": true,
+	"side_bar_visible": true,
+	"side_bar_width": 263.0,
+	"status_bar_visible": true,
+	"template_settings":
+	{
+	}
+}
