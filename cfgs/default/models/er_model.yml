@@ -1,0 +1,6 @@
+model:
+    w_focal: 0.9
+    ws_loss:
+        focal: 1.
+
+net:

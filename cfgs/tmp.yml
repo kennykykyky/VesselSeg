@@ -1,0 +1,64 @@
+# Add groups of modalities fusion
+exp:
+    name: tmp
+    names_exp_delete: ['tmp']
+    idx_device: 2
+    train:
+        batch_size: 500
+        select_mods: False
+    val:
+        batch_size: 1
+
+    test:
+        batch_size: 1
+
+dataset:
+    name: ctamri
+    path: ./data/data_80size_new
+    mods: ['S101', 'S104', 'S107']
+    mods_val: ['S101', 'S104', 'S107']
+
+model:
+    name: bayes_gwr
+    w_focal: 0.95
+    ws_loss:
+        recon_ori: 0.
+        kl_z: 0.
+        kl_vel: 0.
+        focal: 500
+
+net: 
+    groups_mod: [0, 0, 0]
+    n_channels_init: 16
+    n_levels: 5
+    momentum_bns: 0.1
+    dropout: 0.
+    double_channels: True
+    qz: 
+        type: gaussian
+        interp_mode_var_gaussian: linear
+
+    encoder:
+        conv_blk:
+            n_layers: 2
+            kernel_size: 3
+    reg:
+        conv_blk:
+            kernel_size: 3
+            ns_layer_per_level: [8, 4, 2, 0, 0]
+    decoder:
+        conv_blk:
+            n_layers: 2
+            kernel_size: 1
+        deconv_blk:
+            mode: resize_conv
+            resize_conv:
+                kernel_size: 1
+        out_conv:
+            kernel_size: 1
+          
+
+
+
+
+

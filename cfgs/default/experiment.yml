@@ -1,0 +1,22 @@
+exp:
+    mode: train
+    n_workers: 0
+    train:
+        batch_size: 20
+    customize_dataloader: True
+    val:
+        skip_initial_val: True
+        batch_size: 20
+        save_every_better_model: True
+    test:
+        batch_size: 20
+        confusion_matrix:
+            wise: pointwise
+        classification_curve:
+            enable: False
+        metrics_all_cases:
+            enable: False
+            dice: True
+        save_seg:
+            enable: False
+

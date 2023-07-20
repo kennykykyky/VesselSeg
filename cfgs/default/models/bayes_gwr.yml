@@ -1,0 +1,47 @@
+model:
+    ws_loss:
+        recon_ori: 1.
+        kl_z: 1.
+        kl_vel: 1.
+    ws_bn_fusion: [1., 1., 1.]
+    spatial_kl:
+        w_prior: 10
+    select_mods_train: False
+    thres: 0.
+
+net: 
+    groups_mod: [-1]
+    n_channels_init: 16
+    n_levels: 5
+    momentum_bns: 0.01
+    dropout: 0.
+    double_channels: True
+    residual: False
+    separate_convs_for_seg: False
+    qz: 
+        type: gaussian
+        interp_mode_var_gaussian: linear
+
+    encoder:
+        conv_blk:
+            n_layers: 2
+            kernel_size: 3
+    reg:
+        enable: False
+        conv_blk:
+            kernel_size: 3
+            ns_layer_per_level: [8, 4, 2, 0, 0]
+    decoder:
+        separate_convs_seg: False
+        merge_skip: sum
+        conv_blk:
+            n_layers: 2
+            kernel_size: 1
+        deconv_blk:
+            mode: resize_conv
+            # mode: 'deconv'
+            resize_conv:
+                kernel_size: 1
+        out_conv:
+            kernel_size: 3
+

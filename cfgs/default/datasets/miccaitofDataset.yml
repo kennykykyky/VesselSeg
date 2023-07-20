@@ -1,0 +1,10 @@
+dataset:
+    path: ./data/CAS2023_training
+    auglist:
+    hps: 32
+    shape_patch: 64
+    output_pos: False
+    dim: 3
+    batch_size: 4
+    n_channels_img: 1
+    mods: ['tof']

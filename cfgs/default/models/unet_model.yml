@@ -1,0 +1,33 @@
+model:
+    w_focal: 0.9
+    ws_loss:
+        focal: 1.
+
+net:
+    n_channels_init: 16
+    n_levels: 5
+    momentum_bns: 0.1
+    dropout: 0.
+    double_channels: True
+    residual: False
+    attention: False
+    recurrent: False
+    nested: False
+
+    encoder:
+        conv_blk:
+            n_layers: 2
+            kernel_size: 3
+    decoder:
+        merge_skip: sum
+        conv_blk:
+            n_layers: 2
+            kernel_size: 1
+        deconv_blk:
+            mode: resize_conv
+            # mode: 'deconv'
+            resize_conv:
+                kernel_size: 1
+        out_conv:
+            kernel_size: 3
+

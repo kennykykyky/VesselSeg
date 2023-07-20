@@ -1,0 +1,27 @@
+exp:
+    name: 01_00
+    names_exp_delete: ['tmp', 'train_01_00']
+    idx_device: 1
+    train:
+        batch_size: 4
+        select_mods: False
+        optimizer:
+            name: adam
+            lr: 1e-5
+    val:
+        batch_size: 1
+        n_epochs_once: 5
+
+    test:
+        batch_size: 1
+
+dataset:
+    name: lumenDataset
+    path: ./data/iSNAP
+
+model:
+    name: er_model
+    w_focal: 0.5
+
+net:
+

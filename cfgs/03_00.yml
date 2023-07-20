@@ -1,0 +1,38 @@
+exp:
+    name: 03_00
+    names_exp_delete: ['tmp', 'train_03_00']
+    idx_device: 2
+    train:
+        batch_size: 1
+        select_mods: False
+        optimizer:
+            name: adam
+            lr: 3e-4
+            adam:
+                weight_decay: 1e-5
+    val:
+        skip_initial_val: True
+        batch_size: 1
+        n_epochs_once: 2
+
+    test:
+        batch_size: 1
+
+dataset:
+    name: miccaimonaiDataset
+    path: ./data/MICCAI_MONAI/MICCAI_CAS_2023.json
+    batch_size: 1
+
+model:
+    name: swinunetr_model
+    ws_loss:
+        focal: 1.0
+        diceloss: 0.0
+    w_focal: 0.5
+
+net:
+    patch_size: [96, 96, 96]
+    in_channels: 1
+    out_channels: 1
+    feature_size: 48
+    use_checkpoint: True
