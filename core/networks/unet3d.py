@@ -135,7 +135,7 @@ class Unet3D(nn.Module):
     def forward(self, x):
         x, downsampling_features = self.encoder(x)
         x = self.decoder(x, downsampling_features)
-        # x = self.sigmoid(x)
+        x = self.sigmoid(x)
         # print("Final output shape: ", x.shape)
         self.outputs['seg'] = x
         return None

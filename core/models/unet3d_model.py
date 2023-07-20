@@ -3,6 +3,7 @@ from core.networks.unet3d import Unet3D
 # from core.utils.img import get_img_grid, draw_conts_given_mask
 from core.losses.DiceLoss import Dice
 from core.losses.focal import BinaryFocalLossWithLogits
+from core.losses.cldiceLoss import soft_cldice, soft_dice_cldice, soft_dice
 
 import torch
 import pdb
@@ -33,6 +34,8 @@ class UNet3DModel(nn.Module):
         self.paths_file_net = ['core/networks/unet3d.py']
 
         self.focal_loss = BinaryFocalLossWithLogits(alpha=cfg.model.w_focal, reduction='mean')
+        # self.cldice_loss = soft_cldice()
+        # self.cldice_loss = soft_dice_cldice()
         self.dice = Dice()
         # includes each metric and the total loss for backward training
         self.metrics_iter: dict[str, torch.Tensor | float] = {}
@@ -50,13 +53,15 @@ class UNet3DModel(nn.Module):
         self.imgs = imgs
         self.segs_gt = segs
         output = self.net(self.imgs)
-        self.seg_pred = (self.net.outputs['seg'] > 0.9).float() # [B, 1, ...] # in iSNAP, the predicted value range is (-1, 5)
+        self.seg_pred = (self.net.outputs['seg'] > 0.9).float() 
         return output
 
     def loss_focal(self):
         # loss = nn.BCELoss()(self.net.outputs['seg'], self.segs_gt[:, None])
         # loss = self.dice(self.net.outputs['seg'], self.segs_gt[:, None])
+        # loss = self.focal_loss(self.net.outputs['seg'], self.segs_gt[:, None])
         loss = self.focal_loss(self.net.outputs['seg'], self.segs_gt[:, None])
+        # loss = self.cldice_loss(self.net.outputs['seg'], self.segs_gt[:, None])
         return loss
 
     def before_epoch(self, mode='train', i_repeat=0):

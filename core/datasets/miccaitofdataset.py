@@ -123,7 +123,7 @@ class miccaitofDataset(IterableDataset):
                 img = img.get_fdata()
                 seg = seg.get_fdata()
 
-                ys, xs, zs = np.asarray(img > 0.05).nonzero()
+                ys, xs, zs = np.asarray(seg == 1).nonzero()
                 i = np.random.randint(len(xs))
                 x = xs[i] + np.random.randint(-self.cfg.dataset.shape_patch // 2, self.cfg.dataset.shape_patch // 2)
                 y = ys[i] + np.random.randint(-self.cfg.dataset.shape_patch // 2, self.cfg.dataset.shape_patch // 2)

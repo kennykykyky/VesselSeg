@@ -47,7 +47,7 @@ class swinunetrModel(nn.Module):
         
         self.metrics_iter: dict[str, torch.Tensor | float] = {}
         self.metrics_epoch: dict[str, torch.Tensor | float] = {}
-        self.metrics_dice = DiceMetric(include_background=False, reduction="mean", get_not_nans = False)
+        self.metrics_dice = DiceMetric(include_background=False, reduction="mean", get_not_nans = False, num_classes=1)
         
         self.output = {}
         
@@ -61,25 +61,24 @@ class swinunetrModel(nn.Module):
     def forward(self, data):
         img, gt = data['image'], data['label']
         
-        self.imgs = img
-        self.segs_gt = gt
-        
         if not self.training:
             with torch.no_grad():
                 with torch.cuda.amp.autocast():
                     pred = sliding_window_inference(img, roi_size=self.cfg.net.patch_size, sw_batch_size=4, predictor=self.net)
                     
-                gts = decollate_batch(gt)
-                preds = decollate_batch(pred)
-                self.seg_pred = pred
-                onehots_gt = [self.gt2onehot(gt) for gt in gts]
-                onehots_pred = [self.pred2onehot(pred) for pred in preds]
-                self.output = {'onehots_gt': onehots_gt, 'onehots_pred': onehots_pred}
+                # gts = decollate_batch(gt)
+                # preds = decollate_batch(pred)
+                # self.seg_pred = pred
+                # onehots_gt = [self.gt2onehot(gt) for gt in gts]
+                # onehots_pred = [self.pred2onehot(pred) for pred in preds]
+                # self.output = {'onehots_gt': onehots_gt, 'onehots_pred': onehots_pred}
+                
+                self.output = {'logits_pred': pred, 'logits_gt': gt}
+                
                 return self.output
         else:
             with torch.cuda.amp.autocast():
                 pred = self.net(img)
-                self.seg_pred = pred
             self.output = {'logits_pred': pred, 'logits_gt': gt}
             return self.output
 
@@ -104,7 +103,6 @@ class swinunetrModel(nn.Module):
             self.metrics_epoch['dice_mean'] = self.metrics_dice.aggregate().item()
             self.metrics_epoch['metric_final'] = self.metrics_epoch['dice_mean']
             self.metrics_dice.reset()
-        # del self.output
 
     def get_metrics(self, data, output, mode='train'):
         """
@@ -120,45 +118,53 @@ class swinunetrModel(nn.Module):
                     loss = getattr(self, f'loss_{name_loss}')()
                     self.metrics_iter[name_loss] = loss.item()
                     self.metrics_iter['loss_final'] += w * loss
+            print(self.metrics_iter['loss_final'])
 
         with torch.no_grad():
             if not self.training:
-                self.metrics_dice(y_pred=output['onehots_pred'], y=output['onehots_gt'])
+                self.metrics_dice(y_pred=output['logits_pred'], y=output['logits_gt'])
+                # self.metrics_dice(y_pred=output['onehots_pred'], y=output['onehots_gt'])
+                
+        del self.output
                 
         return self.metrics_iter
 
     def vis(self, writer, global_step, data, output, mode, in_epoch):
         pass
 
-        # if global_step % 10 == 0:
-        #     with torch.no_grad():            
-        #         n_rows, n_cols = 4, 4
-        #         img_grid = make_grid(self.imgs[0]).cpu().numpy()[0]
+        if global_step % 10 == 0:
+            with torch.no_grad():        
                 
-        #         select_index = np.random.choice(self.imgs[0].shape[-1], n_rows * n_cols, replace = False)
-        #         imgs_show = self.imgs[0, 0, ..., select_index].cpu().numpy()
-        #         segs_show = self.segs_gt[0, ..., select_index].cpu().numpy()
-        #         preds_show = self.seg_pred[0, 0, ..., select_index].cpu().numpy()
-                
-        #         fig, axes = plt.subplots(n_rows, n_rows, figsize = (12, 12))
-        #         if not hasattr(axes, 'reshape'):
-        #             axes = [axes]
-        #         for i, ax in enumerate(axes.flatten()):
-        #             ax.axis('off'), ax.set_xticks([]), ax.set_yticks([])
-        #             ax.imshow(imgs_show[..., i], cmap='gray')
-        #             conts_gt = measure.find_contours(segs_show[..., i])
-        #             for cont in conts_gt:
-        #                 ax.plot(cont[:, 1], cont[:, 0], linewidth=1, color='#0099ff')
-        #             conts_pred = measure.find_contours(preds_show[..., i])
-        #             for cont in conts_pred:
-        #                 ax.plot(cont[:, 1], cont[:, 0], linewidth=1, color='#ffa500', alpha = 0.5)
+                imgs, gts = data['image'], data['label']
+                pred = output['logits_pred']
                     
-        #         fig.suptitle('{}_epoch{}.png'.format(mode, global_step))
-        #         # plt.savefig('tmp/test_plot.png')
+                n_rows, n_cols = 4, 4
+                img_grid = make_grid(imgs[0]).cpu().numpy()[0]
+                
+                select_index = np.random.choice(imgs[0].shape[-1], n_rows * n_cols, replace = False)
+                imgs_show = imgs[0, 0, ..., select_index].cpu().numpy()
+                segs_show = gts[0, 0, ..., select_index].cpu().numpy()
+                preds_show = pred[0, 0, ..., select_index].cpu().numpy()
+                
+                fig, axes = plt.subplots(n_rows, n_rows, figsize = (12, 12))
+                if not hasattr(axes, 'reshape'):
+                    axes = [axes]
+                for i, ax in enumerate(axes.flatten()):
+                    ax.axis('off'), ax.set_xticks([]), ax.set_yticks([])
+                    ax.imshow(imgs_show[..., i], cmap='gray')
+                    conts_gt = measure.find_contours(segs_show[..., i])
+                    for cont in conts_gt:
+                        ax.plot(cont[:, 1], cont[:, 0], linewidth=1, color='#0099ff')
+                    conts_pred = measure.find_contours(preds_show[..., i])
+                    for cont in conts_pred:
+                        ax.plot(cont[:, 1], cont[:, 0], linewidth=1, color='#ffa500', alpha = 0.5)
+                    
+                fig.suptitle('{}_epoch{}.png'.format(mode, global_step))
+                # plt.savefig('tmp/test_plot.png')
 
-        #         writer.add_figure(mode, fig, global_step)
-        #         if self.cfg.var.obj_operator.is_best:
-        #             writer.add_figure(f'{mode}_best', fig, global_step)
+                writer.add_figure(mode, fig, global_step)
+                if self.cfg.var.obj_operator.is_best:
+                    writer.add_figure(f'{mode}_best', fig, global_step)
                     
         #         # if global_step == 200:
         #         #         pdb.set_trace()

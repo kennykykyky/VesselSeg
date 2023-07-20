@@ -61,13 +61,13 @@ class miccaimonaiDataset:
                             pixdim=(0.5, 0.5, 0.8),
                             mode=("bilinear", "nearest"),
                         ),
-                        EnsureTyped(keys=["image", "label"], device=None, track_meta=False),
+                        EnsureTyped(keys=["image", "label"], device=device, track_meta=False),
                         RandCropByPosNegLabeld(
                             keys=["image", "label"],
                             label_key="label",
                             spatial_size=(96, 96, 96),
                             pos=1,
-                            neg=1,
+                            neg=0,
                             num_samples=num_samples,
                             image_key="image",
                             image_threshold=0,
@@ -100,11 +100,16 @@ class miccaimonaiDataset:
                     ]
                 )
             
+            # dataset = SmartCacheDataset(
+            #                 data=datalist,
+            #                 transform=cls.transform,
+            #                 cache_num = 4,
+            #             )
             dataset = PersistentDataset(
                             data=datalist,
                             transform=cls.transform,
                             cache_dir = './tmp/cache_dataset',
-                        )
+                        )            
             dataloader = ThreadDataLoader(dataset, num_workers=0, batch_size=cfg.exp.train.batch_size, shuffle=True)
             
         elif mode in ['val', 'test']:
@@ -119,13 +124,14 @@ class miccaimonaiDataset:
                             pixdim=(1.5, 1.5, 2.0),
                             mode=("bilinear", "nearest"),
                         ),
-                        EnsureTyped(keys=["image", "label"], device=None, track_meta=True),
+                        EnsureTyped(keys=["image", "label"], device=device, track_meta=True),
                     ]
                 )
             if mode == 'val':
                 val_files = load_decathlon_datalist(datapath, True, "validation")
             elif mode == 'test':
                 val_files = load_decathlon_datalist(datapath, True, "test")
+            # dataset = SmartCacheDataset(data=val_files, transform=cls.transform, cache_num = 4)
             dataset = PersistentDataset(data=val_files, transform=cls.transform, cache_dir = './tmp/cache_dataset',)
             dataloader = ThreadDataLoader(dataset, num_workers=0, batch_size=cfg.exp[mode].batch_size)
         
