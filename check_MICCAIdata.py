@@ -7,6 +7,29 @@ import pdb
 import numpy as np
 import nibabel as nib
 
+
+def rename_nnUnetdata(datapath, name='TOF', label = False):
+    
+    # rename the data inside datapath to '<name>_xxx_0000.nii.gz', where xxx is the id number for each case and it starts from 001 to the total number of cases
+    # e.g. rename_nnUnetdata('./data/CAS2020_training', name='TOF')
+    
+    paths_items = glob.glob(os.path.join(datapath, '*.nii.gz'))
+    paths_items.sort()
+    for i, path_item in enumerate(paths_items):
+        name_item = os.path.basename(path_item)
+        if not label:
+            name_item_new = f'{name}_{i+1:03d}_0000.nii.gz'
+        else:
+            name_item_new = f'{name}_{i+1:03d}.nii.gz'
+        os.rename(path_item, os.path.join(os.path.dirname(path_item), name_item_new))
+        print(f'{name_item} -> {name_item_new}')
+        
+# rename_nnUnetdata('D:\Kaiyu\nnUNet_dataset\nnUNet_raw\Dataset301_SMRATOF\imagesTr', name='TOF')
+datapath = 'D:/Kaiyu/nnUNet_dataset/nnUNet_raw/Dataset301_SMRATOF/labelsTr'
+rename_nnUnetdata(datapath, name='TOF', label = True)
+
+pdb.set_trace()
+
 path_dataset='./data/CAS2023_training'
 
 save_dir = './tmp/MICCAI_tmp'

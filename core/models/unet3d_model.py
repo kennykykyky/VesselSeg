@@ -4,6 +4,8 @@ from core.networks.unet3d import Unet3D
 from core.losses.DiceLoss import Dice
 from core.losses.focal import BinaryFocalLossWithLogits
 from core.losses.cldiceLoss import soft_cldice, soft_dice_cldice, soft_dice
+from core.utils.clDiceMetric import clDice
+from core.utils.bettiMetric import betti
 
 import torch
 import pdb
@@ -57,27 +59,12 @@ class UNet3DModel(nn.Module):
         return output
 
     def loss_focal(self):
-        # loss = nn.BCELoss()(self.net.outputs['seg'], self.segs_gt[:, None])
-        # loss = self.dice(self.net.outputs['seg'], self.segs_gt[:, None])
-        # loss = self.focal_loss(self.net.outputs['seg'], self.segs_gt[:, None])
         loss = self.focal_loss(self.net.outputs['seg'], self.segs_gt[:, None])
         # loss = self.cldice_loss(self.net.outputs['seg'], self.segs_gt[:, None])
         return loss
 
     def before_epoch(self, mode='train', i_repeat=0):
         self.metrics_epoch = OrderedDict()
-        # if mode in ['val', 'test']:
-        #     # pdb.set_trace()
-        #     case_ves2idxs_labeled_png = getattr(self.cfg.var.obj_operator, f'{mode}_set').case_ves2idxs_labeled_png
-        #     case_vess_with_cal = [key for key, value in case_ves2idxs_labeled_png.items() if value]
-        #     case_ves = np.random.choice(case_vess_with_cal)
-        #     idx_png = np.random.choice(case_ves2idxs_labeled_png[case_ves])
-        #     self.case_ves_idx_png_vis = (case_ves, idx_png)
-
-        # if self.cfg.exp.mode == 'test':
-        #     if self.cfg.exp.test.classification_curve.enable:
-        #         self.segs_gt_roc = []
-        #         self.segs_pred_roc = []
 
     def after_epoch(self, mode='train'):
         self.metrics_epoch['metric_final'] = 0
@@ -106,6 +93,9 @@ class UNet3DModel(nn.Module):
             self.metrics_epoch['precision_slicewise'] = pc = tp / (tp + fp + 1e-8)
             self.metrics_epoch['f1_score_slicewise'] = 2 * pc * se / (pc + se + 1e-8)
             self.metrics_epoch['specificity_slicewise'] = tn / (tn + fp + 1e-8)
+            
+            self.metrics_epoch['clDice'] = clDice(np.squeeze(self.seg_pred.cpu().numpy()), np.squeeze(self.segs_gt.cpu().numpy()))
+            # self.metrics_epoch['betti'] = betti(np.squeeze(self.seg_pred.cpu().numpy()), np.squeeze(self.segs_gt.cpu().numpy()))
 
         self.metrics_epoch['metric_final'] = self.metrics_epoch['dice']
 
