@@ -5,7 +5,7 @@ from core.losses.DiceLoss import Dice
 from core.losses.focal import BinaryFocalLossWithLogits
 from core.losses.cldiceLoss import soft_cldice, soft_dice_cldice, soft_dice
 from core.utils.clDiceMetric import clDice
-from core.utils.bettiMetric import betti
+from core.utils.bettiMetric import betti_error_metric
 
 import torch
 import pdb
@@ -95,7 +95,7 @@ class UNet3DModel(nn.Module):
             self.metrics_epoch['specificity_slicewise'] = tn / (tn + fp + 1e-8)
             
             self.metrics_epoch['clDice'] = clDice(np.squeeze(self.seg_pred.cpu().numpy()), np.squeeze(self.segs_gt.cpu().numpy()))
-            # self.metrics_epoch['betti'] = betti(np.squeeze(self.seg_pred.cpu().numpy()), np.squeeze(self.segs_gt.cpu().numpy()))
+            self.metrics_epoch['betti'] = betti_error_metric(np.squeeze(self.seg_pred.cpu().numpy()), np.squeeze(self.segs_gt.cpu().numpy()))
 
         self.metrics_epoch['metric_final'] = self.metrics_epoch['dice']
 
