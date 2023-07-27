@@ -1,0 +1,41 @@
+exp:
+    name: 02_05_test
+    names_exp_delete: ['tmp', 'test_02_05_test']
+    idx_device: 0
+    customize_dataloader: False
+    mode: test
+    train:
+        batch_size: 4
+        select_mods: False
+        optimizer:
+            name: adam
+            lr: 1e-5
+    val:
+        batch_size: 1
+        n_epochs_once: 5
+
+    test:
+        batch_size: 1
+        path_model_trained: ./save/train_02_04_2023-07-19_17-19-48/checkpoints/model_best.pth
+        confusion_matrix:
+            wise: slicewise
+        metrics_all_cases:
+            enable: True
+            dice: True
+        save_seg:
+            enable: True
+
+dataset:
+    name: miccaitofDataset
+    path: ./data/CAS2023_training
+    hps: 32
+    shape_patch: 64
+
+model:
+    name: unet3d_model
+    w_focal: 0.5
+
+net:
+    in_channels: 1
+    out_channels: 1
+    model_depth: 4
