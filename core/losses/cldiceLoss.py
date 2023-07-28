@@ -63,8 +63,8 @@ def soft_dice(y_true, y_pred):
         [float32]: [loss value]
     """
     smooth = 1
-    intersection = torch.sum((y_true * y_pred)[:,:,...])
-    coeff = (2. *  intersection + smooth) / (torch.sum(y_true[:,:,...]) + torch.sum(y_pred[:,:,...]) + smooth)
+    intersection = torch.sum((y_true * y_pred)[:,1:,...])
+    coeff = (2. *  intersection + smooth) / (torch.sum(y_true[:,1:,...]) + torch.sum(y_pred[:,1:,...]) + smooth)
     return (1. - coeff)
 
 

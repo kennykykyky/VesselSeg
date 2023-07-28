@@ -61,7 +61,6 @@ class miccaitofDataset(IterableDataset):
             rank = dist.get_rank()
             world_size = dist.get_world_size()
         
-        
         if self.mode == 'train':
             # if True:
             np.random.shuffle(self.paths_items)
@@ -78,24 +77,34 @@ class miccaitofDataset(IterableDataset):
                 assert img.shape == seg.shape
                 
                 ys, xs, zs = np.asarray(seg == 1).nonzero() # For iSNAP, nearly all pixel values are higher than zero
-                assert self.cfg.dataset.shape_patch < img.shape[0]
+                
+                if len(self.cfg.dataset.shape_patch) == 3:
+                    shape_patch = self.cfg.dataset.shape_patch
+                else:
+                    shape_patch = [self.cfg.dataset.shape_patch] * 3
+                    
+                # assert shape_patch < img.shape[0]
 
                 for _ in range(len(xs) // 500):
                     num += 1
                     if num == self.__len__() + 1:
                         break
                     i = np.random.randint(len(xs))
-                    x = xs[i] + np.random.randint(-self.cfg.dataset.shape_patch // 2, self.cfg.dataset.shape_patch // 2)
-                    y = ys[i] + np.random.randint(-self.cfg.dataset.shape_patch // 2, self.cfg.dataset.shape_patch // 2)
-                    z = zs[i] + np.random.randint(-self.cfg.dataset.shape_patch // 2, self.cfg.dataset.shape_patch // 2)
+                    x = xs[i] + np.random.randint(-shape_patch[1] // 2, shape_patch[1] // 2)
+                    y = ys[i] + np.random.randint(-shape_patch[0] // 2, shape_patch[0] // 2)
+                    z = zs[i] + np.random.randint(-shape_patch[2] // 2, shape_patch[2] // 2)
                     x = np.clip(x, 0, seg.shape[1] - 1)
                     y = np.clip(y, 0, seg.shape[0] - 1)
                     z = np.clip(z, 0, seg.shape[2] - 1)
-                    patch_seg = croppatch3d(seg, y, x, z, *[self.cfg.dataset.shape_patch // 2] * 3)
+                    patch_seg = croppatch3d(seg, y, x, z, *[shape_patch[1] // 2, shape_patch[0] // 2, shape_patch[2] // 2])
                     # if no lumen region, abort current patch
-                    patch_img = croppatch3d(img, y, x, z, *[self.cfg.dataset.shape_patch // 2] * 3)
+                    patch_img = croppatch3d(img, y, x, z, *[shape_patch[1] // 2, shape_patch[0] // 2, shape_patch[2] // 2])
                     # batch_pos[mi] = [x, y, z]
 
+                    # put the last axis of patch_img and path_seg to the first axis
+                    patch_img = patch_img.transpose(2,0,1)
+                    patch_seg = patch_seg.transpose(2,0,1)
+                    
                     patch_seg = torch.tensor(patch_seg).float()
                     patch_img = torch.tensor(patch_img).unsqueeze(0).float()
                     patch_img = patch_img - patch_img.min()
@@ -122,17 +131,26 @@ class miccaitofDataset(IterableDataset):
                 
                 img = img.get_fdata()
                 seg = seg.get_fdata()
+                
+                if len(self.cfg.dataset.shape_patch) == 3:
+                    shape_patch = self.cfg.dataset.shape_patch
+                else:
+                    shape_patch = [self.cfg.dataset.shape_patch] * 3
 
                 ys, xs, zs = np.asarray(seg == 1).nonzero()
                 i = np.random.randint(len(xs))
-                x = xs[i] + np.random.randint(-self.cfg.dataset.shape_patch // 2, self.cfg.dataset.shape_patch // 2)
-                y = ys[i] + np.random.randint(-self.cfg.dataset.shape_patch // 2, self.cfg.dataset.shape_patch // 2)
-                z = zs[i] + np.random.randint(-self.cfg.dataset.shape_patch // 2, self.cfg.dataset.shape_patch // 2)
+                x = xs[i] + np.random.randint(-shape_patch[0] // 2, shape_patch[0] // 2)
+                y = ys[i] + np.random.randint(-shape_patch[1] // 2, shape_patch[1] // 2)
+                z = zs[i] + np.random.randint(-shape_patch[2] // 2, shape_patch[2] // 2)
                 x = np.clip(x, 0, seg.shape[1] - 1)
                 y = np.clip(y, 0, seg.shape[0] - 1)
                 z = np.clip(z, 0, seg.shape[2] - 1)
-                img = croppatch3d(img, y, x, z, *[self.cfg.dataset.shape_patch // 2] * 3)
-                seg = croppatch3d(seg, y, x, z, *[self.cfg.dataset.shape_patch // 2] * 3)
+                img = croppatch3d(img, y, x, z, *[shape_patch[1] // 2, shape_patch[0] // 2, shape_patch[2] // 2])
+                seg = croppatch3d(seg, y, x, z, *[shape_patch[1] // 2, shape_patch[0] // 2, shape_patch[2] // 2])
+                
+                # put the last axis of patch_img and path_seg to the first axis for numpy array
+                img = img.transpose(2, 0, 1)
+                seg = seg.transpose(2, 0, 1)
 
                 seg = torch.tensor(seg).float()
                 img = torch.tensor(img).unsqueeze(0).float()
@@ -140,6 +158,7 @@ class miccaitofDataset(IterableDataset):
                 img = img / img.max()
                 img = img[None, ...]
                 seg = seg[None, ...]
+
                 yield img, seg
 
     @staticmethod

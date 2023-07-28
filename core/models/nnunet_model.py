@@ -24,6 +24,7 @@ from skimage import measure
 from collections import OrderedDict
 from sklearn import metrics
 from collections import OrderedDict
+import torch.distributed as dist
 import os
 import json
 import pandas as pd
@@ -42,11 +43,20 @@ class nnUNetModel(nn.Module):
                                           dataset_json, 
                                           plans_manager.get_configuration('3d_fullres'), 
                                           num_input_channels=1)
+        
+        id_device = self.cfg.exp.idx_device
+        map_location = {'cuda:0': f'cuda:{id_device}'}
+        saved_model = torch.load('./save/SMRA_nnUnet.pth')
+        pretrained_dict = saved_model['network_weights']
+        self.net.load_state_dict(pretrained_dict, strict=True)
         self.cfg.var.obj_model = self
         self.paths_file_net = []
 
         self.focal_loss = BinaryFocalLossWithLogits(alpha=cfg.model.w_focal, reduction='mean')
+        self.cldice_loss = soft_dice_cldice()
+
         self.dice = Dice()
+        
         # includes each metric and the total loss for backward training
         self.metrics_iter: dict[str, torch.Tensor | float] = {}
         self.metrics_epoch: dict[str, torch.Tensor | float] = {}
@@ -56,20 +66,29 @@ class nnUNetModel(nn.Module):
         self.segs_gt: torch.Tensor = None
         # [B, 1, ...], predicted segmentation, binary float 
         self.seg_pred: torch.Tensor = None
+        self.outputs: dict[str, torch.Tensor] = {}
 
     def forward(self, data):
-        imgs, segs = data['imgs'], data['segs']
+        imgs, segs = data['imgs'], data['segs'].long()
         self.cfg.var.n_samples = b = imgs.shape[0]
         self.imgs = imgs
+        # transform the segs to one-hot format, from shape [Batch, z, x, y] to [Batch, 2, z, x, y]
+        segs = F.one_hot(segs, num_classes=2).permute(0, 4, 1, 2, 3).float()
         self.segs_gt = segs
-        pdb.set_trace()
         output = self.net(self.imgs)
-        self.seg_pred = (self.net.outputs['seg'] > 0.9).float()
-        return output
-
+        # add sigmoid function to the output, the first element is the final output from nnUNet output
+        output = torch.sigmoid(output[0])
+        
+        self.outputs['seg'] = output
+        self.seg_pred = (self.outputs['seg'][:,1] > 0.9).float()
+        return self.outputs['seg'][:,1]
+    
     def loss_focal(self):
-        loss = self.focal_loss(self.net.outputs['seg'], self.segs_gt[:, None])
-        # loss = self.cldice_loss(self.net.outputs['seg'], self.segs_gt[:, None])
+        loss = self.focal_loss(self.outputs['seg'], self.segs_gt)
+        return loss
+    
+    def loss_cldiceloss(self):
+        loss = self.cldice_loss(self.segs_gt, self.outputs['seg'])
         return loss
 
     def before_epoch(self, mode='train', i_repeat=0):
@@ -78,13 +97,11 @@ class nnUNetModel(nn.Module):
     def after_epoch(self, mode='train'):
         self.metrics_epoch['metric_final'] = 0
 
-        # self.metrics_epoch['betti'] = betti_error_metric(np.squeeze(self.seg_pred.cpu().numpy()), np.squeeze(self.segs_gt.cpu().numpy()))
-        
+        for k, v in self.metrics_epoch.items():
+            self.metrics_epoch[k] = v / len(getattr(self.cfg.var.obj_operator, f'{mode}_set'))
+            
         self.metrics_epoch['metric_final'] = self.metrics_epoch['dice']
         
-        if mode in ['test', 'val']:
-            self.metrics_iter['ahd'] = ahd_metric(np.squeeze(self.seg_pred.cpu().numpy()), np.squeeze(self.segs_gt.cpu().numpy()))
-
         if self.cfg.exp.mode == 'test':
             if self.cfg.exp.test.classification_curve.enable:
                 seg_gt_roc = np.concatenate(self.segs_gt_roc)
@@ -141,22 +158,17 @@ class nnUNetModel(nn.Module):
                 self.metrics_iter['loss_final'] += w * loss
 
         with torch.no_grad():
-            seg_gt = self.segs_gt.type(torch.int64)[:, None] # [B, 1, ...]
-            overlapx2, union = self.dice(seg_gt, self.seg_pred, dims_sum=tuple(range(len(seg_gt.shape))),
-                                         return_before_divide=True)
+            seg_gt = self.segs_gt[:,1].type(torch.int64)
+            overlapx2, union = self.dice(seg_gt, self.seg_pred, dims_sum=tuple(range(len(seg_gt.shape))), return_before_divide=True)
 
             self.metrics_iter['dice'] = (overlapx2 + 1e-8) / (union + 1e-8)
-            self.metric_iter['clDice'] = clDice(self.seg_pred, self.seg_gt)
-
-            if mode in ['test', 'val']:
-
-                class_gt = torch.any(torch.any(seg_gt, dim=2), dim=2)[:, 0] # [B]
-                class_pred = torch.any(torch.any(self.seg_pred, dim=2), dim=2)[:, 0] # [B]
+            self.metrics_iter['clDice'] = clDice(self.seg_pred.detach().cpu().numpy().squeeze(), seg_gt.detach().cpu().numpy().squeeze())
+            self.metrics_iter['ahd'] = ahd_metric(self.seg_pred.detach().cpu().numpy().squeeze(), self.segs_gt[:,1].detach().cpu().numpy().squeeze())
 
             if self.cfg.exp.mode == 'test':
                 if self.cfg.exp.test.classification_curve.enable:
                     self.segs_gt_roc.append(seg_gt.cpu().numpy())
-                    self.segs_pred_roc.append(self.net.decoder.outputs['seg'].cpu().numpy())
+                    self.segs_pred_roc.append(self.outputs['seg'].cpu().numpy())
 
             for k, v in self.metrics_iter.items():
                 self.metrics_epoch[k] = self.metrics_epoch.get(k, 0.) + float(v)
@@ -170,10 +182,10 @@ class nnUNetModel(nn.Module):
                 n_rows, n_cols = 4, 4
                 img_grid = make_grid(self.imgs[0]).cpu().numpy()[0]
                 
-                select_index = np.random.choice(self.imgs[0].shape[-1], n_rows * n_cols, replace = False)
-                imgs_show = self.imgs[0, 0, ..., select_index].cpu().numpy()
-                segs_show = self.segs_gt[0, ..., select_index].cpu().numpy()
-                preds_show = self.seg_pred[0, 0, ..., select_index].cpu().numpy()
+                select_index = np.random.choice(self.imgs[0].shape[-3], n_rows * n_cols, replace = False)
+                imgs_show = self.imgs[0, 0, select_index, ...].cpu().numpy()
+                segs_show = self.segs_gt[0, 1, select_index, ...].cpu().numpy().astype(np.uint8)
+                preds_show = self.seg_pred[0, select_index, ...].cpu().numpy()
                 
                 fig, axes = plt.subplots(n_rows, n_rows, figsize = (12, 12))
                 if not hasattr(axes, 'reshape'):

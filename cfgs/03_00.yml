@@ -1,10 +1,10 @@
 exp:
     name: 03_00
     names_exp_delete: ['tmp', 'train_03_00']
-    idx_device: 0
+    idx_device: 2
     customize_dataloader: False
     train:
-        path_model_trained: ./save/SMRA_nnUnet.pth
+        path_model_trained: null
         batch_size: 1
         select_mods: False
         optimizer:
@@ -19,17 +19,16 @@ exp:
 
     test:
         batch_size: 1
-        path_model_trained: ./save/SMRA_nnUnet.pth
+        path_model_trained: null
 
 dataset:
     name: miccaitofDataset
     path: ./data/CAS2023_training
-    hps: 32
-    shape_patch: 64
+    shape_patch: [224, 224, 48]
 
 model:
     name: nnunet_model
     ws_loss:
-        focal: 0.5
-        diceloss: 0.5
+        cldiceloss: 1
+        focal: 0
     w_focal: 0.5
