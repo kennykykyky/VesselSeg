@@ -66,8 +66,6 @@ class swinunetrModel(nn.Module):
                 with torch.cuda.amp.autocast():
                     pred = sliding_window_inference(img, roi_size=self.cfg.net.patch_size, sw_batch_size=4, predictor=self.net)
                     
-                # gts = decollate_batch(gt)
-                # preds = decollate_batch(pred)
                 # self.seg_pred = pred
                 # onehots_gt = [self.gt2onehot(gt) for gt in gts]
                 # onehots_pred = [self.pred2onehot(pred) for pred in preds]

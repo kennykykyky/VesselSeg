@@ -10,6 +10,14 @@ from core.utils.ahdMetric import ahd_metric
 from nnunetv2.utilities.get_network_from_plans import get_network_from_plans
 from nnunetv2.utilities.plans_handling.plans_handler import ConfigurationManager, PlansManager
 
+from monai.data import (
+    decollate_batch,
+)
+from monai.inferers import sliding_window_inference
+from monai.metrics import DiceMetric
+from monai.transforms import AsDiscrete
+from monai.losses import DiceLoss, FocalLoss
+
 import torch
 import pdb
 from torchvision.utils import make_grid
@@ -31,24 +39,36 @@ import pandas as pd
 
 mpl.use('agg')
 
+class nnUNet(nn.Module):
+    def __init__(self, net):
+        super().__init__()
+        self.net = net
+    def forward(self, x):
+        x = self.net(x)
+        return x[0]
+
 class nnUNetModel(nn.Module):
 
     def __init__(self, cfg):
         super().__init__()
         self.cfg = cfg
-        with open("D:/Kaiyu/nnUNet_dataset/nnUNet_results/Dataset301_SMRATOF/nnUNetTrainer__nnUNetPlans__3d_fullres/dataset.json") as f:
+        with open(os.path.join(cfg.exp.nnunet_result.path, 'dataset.json'), 'r') as f:
             dataset_json = json.load(f)
-        plans_manager = PlansManager("D:/Kaiyu/nnUNet_dataset/nnUNet_results/Dataset301_SMRATOF/nnUNetTrainer__nnUNetPlans__3d_fullres/plans.json")
+        plans_manager = PlansManager(os.path.join(cfg.exp.nnunet_result.path, 'plans.json'))
+        with open(os.path.join(cfg.exp.nnunet_result.path, 'plans.json'), 'r') as f:
+                self.plans = json.load(f)
+
         self.net = get_network_from_plans(plans_manager, 
                                           dataset_json, 
-                                          plans_manager.get_configuration('3d_fullres'), 
+                                          plans_manager.get_configuration(cfg.exp.nnunet_result.model), 
                                           num_input_channels=1)
-        
+
         id_device = self.cfg.exp.idx_device
         map_location = {'cuda:0': f'cuda:{id_device}'}
         saved_model = torch.load('./save/SMRA_nnUnet.pth')
         pretrained_dict = saved_model['network_weights']
         self.net.load_state_dict(pretrained_dict, strict=True)
+        self.net = nnUNet(self.net)
         self.cfg.var.obj_model = self
         self.paths_file_net = []
 
@@ -56,7 +76,10 @@ class nnUNetModel(nn.Module):
         self.cldice_loss = soft_dice_cldice()
 
         self.dice = Dice()
-        
+
+        self.gt2onehot = AsDiscrete(to_onehot=2)
+        self.pred2onehot = AsDiscrete(to_onehot=2, argmax=True)
+
         # includes each metric and the total loss for backward training
         self.metrics_iter: dict[str, torch.Tensor | float] = {}
         self.metrics_epoch: dict[str, torch.Tensor | float] = {}
@@ -69,18 +92,24 @@ class nnUNetModel(nn.Module):
         self.outputs: dict[str, torch.Tensor] = {}
 
     def forward(self, data):
-        imgs, segs = data['imgs'], data['segs'].long()
+        imgs, segs = data['image'], data['label'].long()
+        imgs, segs = imgs.to(self.cfg.var.obj_operator.device), segs.to(self.cfg.var.obj_operator.device)
         self.cfg.var.n_samples = b = imgs.shape[0]
+        self.segs_gt = self.gt2onehot(segs.permute(1, 0, 2, 3, 4)).permute(1, 0, 2, 3, 4)
         self.imgs = imgs
-        # transform the segs to one-hot format, from shape [Batch, z, x, y] to [Batch, 2, z, x, y]
-        segs = F.one_hot(segs, num_classes=2).permute(0, 4, 1, 2, 3).float()
-        self.segs_gt = segs
-        output = self.net(self.imgs)
-        # add sigmoid function to the output, the first element is the final output from nnUNet output
-        output = torch.sigmoid(output[0])
-        
-        self.outputs['seg'] = output
-        self.seg_pred = (self.outputs['seg'][:,1] > 0.9).float()
+        del data, segs, imgs
+
+        if not self.training:
+            with torch.no_grad():
+                with torch.cuda.amp.autocast():
+                    pred = sliding_window_inference(self.imgs, roi_size=self.plans['configurations'][self.cfg.exp.nnunet_result.model]['patch_size'], sw_batch_size=4, predictor=self.net)
+
+        else:
+            with torch.cuda.amp.autocast():
+                pred = self.net(self.imgs)
+
+        self.outputs['seg'] = torch.sigmoid(pred) # the nnUNet will output results from all decoder layers
+        self.seg_pred = (self.outputs['seg'][:,1] > 0.9).float() 
         return self.outputs['seg'][:,1]
     
     def loss_focal(self):
@@ -156,6 +185,7 @@ class nnUNetModel(nn.Module):
                 loss = getattr(self, f'loss_{name_loss}')()
                 self.metrics_iter[name_loss] = loss.item()
                 self.metrics_iter['loss_final'] += w * loss
+                # print('loss: ', self.metrics_iter['loss_final'])
 
         with torch.no_grad():
             seg_gt = self.segs_gt[:,1].type(torch.int64)
@@ -163,7 +193,9 @@ class nnUNetModel(nn.Module):
 
             self.metrics_iter['dice'] = (overlapx2 + 1e-8) / (union + 1e-8)
             self.metrics_iter['clDice'] = clDice(self.seg_pred.detach().cpu().numpy().squeeze(), seg_gt.detach().cpu().numpy().squeeze())
-            self.metrics_iter['ahd'] = ahd_metric(self.seg_pred.detach().cpu().numpy().squeeze(), self.segs_gt[:,1].detach().cpu().numpy().squeeze())
+
+            if mode in ['val', 'test']:
+                self.metrics_iter['ahd'] = ahd_metric(self.seg_pred.detach().cpu().numpy().squeeze(), self.segs_gt[:,1].detach().cpu().numpy().squeeze())
 
             if self.cfg.exp.mode == 'test':
                 if self.cfg.exp.test.classification_curve.enable:
@@ -184,7 +216,7 @@ class nnUNetModel(nn.Module):
                 
                 select_index = np.random.choice(self.imgs[0].shape[-3], n_rows * n_cols, replace = False)
                 imgs_show = self.imgs[0, 0, select_index, ...].cpu().numpy()
-                segs_show = self.segs_gt[0, 1, select_index, ...].cpu().numpy().astype(np.uint8)
+                segs_show = self.segs_gt[0, 1, select_index, ...].cpu().numpy()
                 preds_show = self.seg_pred[0, select_index, ...].cpu().numpy()
                 
                 fig, axes = plt.subplots(n_rows, n_rows, figsize = (12, 12))
@@ -193,10 +225,10 @@ class nnUNetModel(nn.Module):
                 for i, ax in enumerate(axes.flatten()):
                     ax.axis('off'), ax.set_xticks([]), ax.set_yticks([])
                     ax.imshow(imgs_show[..., i], cmap='gray')
-                    conts_gt = measure.find_contours(segs_show[..., i])
+                    conts_gt = measure.find_contours(segs_show[..., i].astype(np.uint8))
                     for cont in conts_gt:
                         ax.plot(cont[:, 1], cont[:, 0], linewidth=1, color='#0099ff')
-                    conts_pred = measure.find_contours(preds_show[..., i])
+                    conts_pred = measure.find_contours(preds_show[..., i].astype(np.uint8))
                     for cont in conts_pred:
                         ax.plot(cont[:, 1], cont[:, 0], linewidth=1, color='#ffa500', alpha = 0.5)
                     

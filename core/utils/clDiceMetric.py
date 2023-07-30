@@ -1,5 +1,6 @@
 from skimage.morphology import skeletonize, skeletonize_3d
 import numpy as np
+import pdb
 
 def cl_score(v, s):
     """[this function computes the skeleton volume overlap]
@@ -33,4 +34,13 @@ def clDice(v_p, v_l):
     elif len(v_p.shape)==3:
         tprec = cl_score(v_p,skeletonize_3d(v_l))
         tsens = cl_score(v_l,skeletonize_3d(v_p))
+    elif len(v_p.shape)==4: # during training
+        # use for loop to calculate the cldice metric and then calculate the mean
+        tprec_sum = 0
+        tsens_sum = 0
+        for i in range(v_p.shape[0]):
+            tprec_sum = cl_score(v_p[i,...],skeletonize(v_l[i,...]))
+            tsens_sum = cl_score(v_l[i,...],skeletonize(v_p[i,...]))
+        tprec = tprec_sum/v_p.shape[0]
+        tsens = tsens_sum/v_p.shape[0]
     return 2*tprec*tsens/(tprec+tsens)

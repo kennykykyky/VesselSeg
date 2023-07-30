@@ -4,6 +4,8 @@ exp:
     train:
         batch_size: 20
     customize_dataloader: True
+    nnunet_result:
+        path: null
     val:
         skip_initial_val: True
         batch_size: 20

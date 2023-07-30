@@ -4,6 +4,7 @@ import pickle
 from PIL import Image
 import numpy as np
 import torch
+import json
 from torch.utils.data import Dataset, IterableDataset
 import pdb
 from core.utils.img import croppatch3d
@@ -20,8 +21,10 @@ from monai.transforms import (
     RandCropByPosNegLabeld,
     RandShiftIntensityd,
     ScaleIntensityRanged,
+    NormalizeIntensityd,
     Spacingd,
     RandRotate90d,
+    ResizeWithPadOrCropd,
     EnsureTyped,
 )
 
@@ -39,38 +42,43 @@ class miccaimonaiDataset:
         datapath = cfg.dataset.path
         
         device = cfg.var.obj_operator.device
-        num_samples = 1 # temporary
+        num_samples = 1
+
+        if cfg.exp.nnunet_result.path:
+            # load json file to datset_fingerprint by joining cfg.exp.nnunet_result_path and dataset_fingerprint.json
+            with open(os.path.join(cfg.exp.nnunet_result.path, 'dataset_fingerprint.json'), 'r') as f:
+                dataset_fingerprint = json.load(f)
+            with open(os.path.join(cfg.exp.nnunet_result.path, 'plans.json'), 'r') as f:
+                plans = json.load(f)
         
+        fold = str(cfg.exp.nnunet_result.fold)
+        model = cfg.exp.nnunet_result.model
+
         if mode == 'train':
             datalist = load_decathlon_datalist(datapath, True, "training")
             cls.transform = Compose(
                     [
-                        LoadImaged(keys=["image", "label"], ensure_channel_first=True),
-                        ScaleIntensityRanged(
+                        LoadImaged(keys=["image", "label"], ensure_channel_first=True, image_only=False),
+                        NormalizeIntensityd(
                             keys=["image"],
-                            a_min=0,
-                            a_max=1000,
-                            b_min=0.0,
-                            b_max=1.0,
-                            clip=True,
-                        ),
-                        CropForegroundd(keys=["image", "label"], source_key="image"),
-                        Orientationd(keys=["image", "label"], axcodes="RAS"),
-                        Spacingd(
-                            keys=["image", "label"],
-                            pixdim=(0.5, 0.5, 0.8),
-                            mode=("bilinear", "nearest"),
-                        ),
-                        EnsureTyped(keys=["image", "label"], device=device, track_meta=False),
+                            subtrahend=dataset_fingerprint["foreground_intensity_properties_per_channel"][fold]["mean"],
+                            divisor=dataset_fingerprint["foreground_intensity_properties_per_channel"][fold]["std"],),
+                        # CropForegroundd(keys=["image", "label"], source_key="image"),
+                        Orientationd(keys=["image", "label"], axcodes="SRA"),
+                        ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=plans['configurations'][model]['patch_size']),
+                        # Spacingd(
+                        #     keys=["image", "label"],
+                        #     pixdim=plans['configurations'][model]['spacing'],
+                        #     mode=("bilinear", "nearest"),
+                        # ),
+                        EnsureTyped(keys=["image", "label"], track_meta=False),
                         RandCropByPosNegLabeld(
                             keys=["image", "label"],
                             label_key="label",
-                            spatial_size=(96, 96, 96),
+                            spatial_size=plans['configurations'][model]['patch_size'],
                             pos=1,
-                            neg=0,
+                            neg=1,
                             num_samples=num_samples,
-                            image_key="image",
-                            image_threshold=0,
                         ),
                         RandFlipd(
                             keys=["image", "label"],
@@ -91,6 +99,7 @@ class miccaimonaiDataset:
                             keys=["image", "label"],
                             prob=0.10,
                             max_k=3,
+                            spatial_axes=(1,2),
                         ),
                         RandShiftIntensityd(
                             keys=["image"],
@@ -100,39 +109,38 @@ class miccaimonaiDataset:
                     ]
                 )
             
-            # dataset = SmartCacheDataset(
-            #                 data=datalist,
-            #                 transform=cls.transform,
-            #                 cache_num = 4,
-            #             )
-            dataset = PersistentDataset(
+            dataset = SmartCacheDataset(
                             data=datalist,
                             transform=cls.transform,
-                            cache_dir = './tmp/cache_dataset',
-                        )            
+                            cache_num = 10,
+                        )
+
             dataloader = ThreadDataLoader(dataset, num_workers=0, batch_size=cfg.exp.train.batch_size, shuffle=True)
             
         elif mode in ['val', 'test']:
             cls.transform = Compose(
                     [
-                        LoadImaged(keys=["image", "label"], ensure_channel_first=True),
-                        ScaleIntensityRanged(keys=["image"], a_min=-175, a_max=250, b_min=0.0, b_max=1.0, clip=True),
-                        CropForegroundd(keys=["image", "label"], source_key="image"),
-                        Orientationd(keys=["image", "label"], axcodes="RAS"),
-                        Spacingd(
-                            keys=["image", "label"],
-                            pixdim=(1.5, 1.5, 2.0),
-                            mode=("bilinear", "nearest"),
-                        ),
-                        EnsureTyped(keys=["image", "label"], device=device, track_meta=True),
+                        LoadImaged(keys=["image", "label"], ensure_channel_first=True, image_only=False),
+                        NormalizeIntensityd(
+                            keys=["image"],
+                            subtrahend=dataset_fingerprint["foreground_intensity_properties_per_channel"][fold]["mean"],
+                            divisor=dataset_fingerprint["foreground_intensity_properties_per_channel"][fold]["std"],),
+                        # CropForegroundd(keys=["image", "label"], source_key="image"),
+                        # ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=plans['configurations'][model]['patch_size']),
+                        Orientationd(keys=["image", "label"], axcodes="SRA"),
+                        # Spacingd(
+                        #     keys=["image", "label"],
+                        #     pixdim=plans['configurations'][model]['spacing'],
+                        #     mode=("bilinear", "nearest"),
+                        # ),
+                        EnsureTyped(keys=["image", "label"], track_meta=False),
                     ]
                 )
             if mode == 'val':
                 val_files = load_decathlon_datalist(datapath, True, "validation")
             elif mode == 'test':
                 val_files = load_decathlon_datalist(datapath, True, "test")
-            # dataset = SmartCacheDataset(data=val_files, transform=cls.transform, cache_num = 4)
-            dataset = PersistentDataset(data=val_files, transform=cls.transform, cache_dir = './tmp/cache_dataset',)
+            dataset = SmartCacheDataset(data=val_files, transform=cls.transform, cache_num = 10)
             dataloader = ThreadDataLoader(dataset, num_workers=0, batch_size=cfg.exp[mode].batch_size)
         
         return dataset, dataloader

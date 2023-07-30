@@ -176,4 +176,4 @@ class miccaitofDataset(IterableDataset):
         if self.mode != 'train':
             assert imgs.shape[0] == 1
             imgs, segs = imgs[0], segs[0]
-        return {'imgs': imgs, 'segs': segs}
+        return {'image': imgs, 'label': segs}
