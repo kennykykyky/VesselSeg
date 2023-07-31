@@ -44,6 +44,7 @@ class soft_cldice(nn.Module):
         self.smooth = smooth
 
     def forward(self, y_true, y_pred):
+        y_pred = torch.sigmoid(y_pred)
         skel_pred = soft_skel(y_pred, self.iter)
         skel_true = soft_skel(y_true, self.iter)
         tprec = (torch.sum(torch.multiply(skel_pred, y_true)[:,1:,...])+self.smooth)/(torch.sum(skel_pred[:,1:,...])+self.smooth)    
@@ -63,11 +64,13 @@ def soft_dice(y_true, y_pred):
         [float32]: [loss value]
     """
     smooth = 1
+    y_pred = torch.sigmoid(y_pred)
     intersection = torch.sum((y_true * y_pred)[:,1:,...])
     coeff = (2. *  intersection + smooth) / (torch.sum(y_true[:,1:,...]) + torch.sum(y_pred[:,1:,...]) + smooth)
     return (1. - coeff)
 
-
+# Here is the modified version of the cldice compared to the original one
+# The y_pred should be logits rather than 0-1 probability
 class soft_dice_cldice(nn.Module):
     def __init__(self, iter_=3, alpha=0.5, smooth = 1.):
         super().__init__()
@@ -77,7 +80,7 @@ class soft_dice_cldice(nn.Module):
 
     def forward(self, y_true, y_pred):
         dice = soft_dice(y_true, y_pred)
-        skel_pred = soft_skel(y_pred, self.iter)
+        skel_pred = soft_skel(torch.sigmoid(y_pred), self.iter)
         skel_true = soft_skel(y_true, self.iter)
         tprec = (torch.sum(torch.multiply(skel_pred, y_true)[:,1:,...])+self.smooth)/(torch.sum(skel_pred[:,1:,...])+self.smooth)    
         tsens = (torch.sum(torch.multiply(skel_true, y_pred)[:,1:,...])+self.smooth)/(torch.sum(skel_true[:,1:,...])+self.smooth)    

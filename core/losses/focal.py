@@ -256,14 +256,19 @@ def binary_focal_loss_with_logits(
 
     probs_pos = torch.sigmoid(input)
     # probs_pos = input
+
     probs_neg = 1 - probs_pos
     idxs = target == 1
     _idxs = ~idxs
-    loss = -torch.sum(alpha * torch.pow(probs_neg[idxs], gamma) * F.logsigmoid(input[idxs])) - torch.sum(
-        (1 - alpha) * torch.pow(probs_pos[_idxs], gamma) * F.logsigmoid(-input[_idxs]))
-    loss = loss / torch.prod(torch.tensor(input.shape))
-    return loss
 
+    probs_neg_idxs = torch.masked_select(probs_neg, idxs)
+    probs_pos_idxs = torch.masked_select(probs_pos, _idxs)
+    input_idxs = torch.masked_select(input, idxs)
+    input_idxs_neg = torch.masked_select(input, _idxs)
+    loss = -torch.sum(alpha * torch.pow(probs_neg_idxs, gamma) * F.logsigmoid(input_idxs)) - torch.sum(
+        (1 - alpha) * torch.pow(probs_pos_idxs, gamma) * F.logsigmoid(-input_idxs_neg))
+
+    return loss
 
 class BinaryFocalLossWithLogits(nn.Module):
     r"""Criterion that computes Focal loss.

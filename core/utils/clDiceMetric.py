@@ -39,8 +39,8 @@ def clDice(v_p, v_l):
         tprec_sum = 0
         tsens_sum = 0
         for i in range(v_p.shape[0]):
-            tprec_sum = cl_score(v_p[i,...],skeletonize(v_l[i,...]))
-            tsens_sum = cl_score(v_l[i,...],skeletonize(v_p[i,...]))
+            tprec_sum += cl_score(v_p[i,...],skeletonize(v_l[i,...]))
+            tsens_sum += cl_score(v_l[i,...],skeletonize(v_p[i,...]))
         tprec = tprec_sum/v_p.shape[0]
         tsens = tsens_sum/v_p.shape[0]
     return 2*tprec*tsens/(tprec+tsens)

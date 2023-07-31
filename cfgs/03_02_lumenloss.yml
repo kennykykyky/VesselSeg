@@ -1,0 +1,42 @@
+exp:
+    name: 03_02_lumenloss
+    names_exp_delete: ['tmp', 'train_03_02_lumenloss']
+    idx_device: 1
+    customize_dataloader: True
+    nnunet_result: 
+        path: /home/kaiyu/project/nnUNet_dataset/nnUNet_results/Dataset301_SMRATOF/nnUNetTrainer__nnUNetPlans__3d_fullres
+        fold: 0
+        model: 3d_fullres
+        weights: ./save/SMRA_nnUnet.pth
+
+    train:
+        path_model_trained: null
+        batch_size: 2
+        select_mods: False
+        optimizer:
+            name: adam
+            lr: 1e-5
+            adam:
+                weight_decay: 1e-5
+    val:
+        skip_initial_val: False
+        batch_size: 1
+        n_epochs_once: 20
+
+    test:
+        batch_size: 1
+        path_model_trained: null
+
+dataset:
+    name: miccaimonaiDataset
+    path: ./data/MICCAI_MONAI/MICCAI_CAS_2023.json
+    num_cache_train: 60
+    num_cache_val: 10  
+
+model:
+    name: nnunet_model
+    ws_loss:
+        cldiceloss: 0
+        focal: 0.0
+        lumen: 1
+    w_focal: 0.5

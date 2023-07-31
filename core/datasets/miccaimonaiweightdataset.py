@@ -10,6 +10,7 @@ import pdb
 from core.utils.img import croppatch3d
 import nibabel as nib
 import torch.distributed as dist
+from monai.transforms import Randomizable
 
 from monai.transforms import (
     AsDiscrete,
@@ -26,6 +27,9 @@ from monai.transforms import (
     RandRotate90d,
     ResizeWithPadOrCropd,
     EnsureTyped,
+    Randomizable,
+    Transform,
+    MapTransform,
 )
 
 from monai.data import (
@@ -36,7 +40,73 @@ from monai.data import (
     load_decathlon_datalist,
 )
 
-class miccaimonaiDataset:
+class AddNf(MapTransform):
+    def __init__(self, keys, nf_values):
+        super().__init__(keys)
+        self.nf_values = nf_values
+
+    def __call__(self, data):
+        d = dict(data)
+        for key in self.keys:
+            d[key]['nf'] = self.nf_values[key]  # add 'nf' field to each item
+        return d
+
+class WeightedRandCropByPosNegLabeld(Randomizable, Transform):
+    def __init__(self, keys, label_key, spatial_size, pos, neg, num_samples, image_key=None):
+        self.cropper = RandCropByPosNegLabeld(keys, label_key, spatial_size, pos, neg, num_samples, image_key, allow_missing_keys=True)
+        
+    def randomize(self, data=None):
+        self.cropper.randomize(data)
+
+    def __call__(self, data):
+        d = dict(data)
+        extra_info = d['extra']
+        # delete 'extra' field from each item
+        del d['extra']
+        croppeds = self.cropper(d)
+        # Assuming 'extra' in d is the location of interest
+        weights = self.calculate_weight(croppeds, extra_info)
+        # add weight field to each item in the list
+        for cropped, weight in zip(croppeds, weights):
+                cropped['weight'] = weight
+        return croppeds
+
+    def calculate_weight(self, patches, bbox_string):
+        weights = []
+        for patch in patches:
+            # check if the value of bbox is a string '-1' and then it will return weight 1
+            if bbox_string == '-1':
+                weight = 1.0
+            else:
+                # transform the bbox in a string format '[x0, x1, y0, y1, z0, z1]' to a numpy array of ints [x0, x1, y0, y1, z0, z1]
+                bbox = np.array([int(i) for i in bbox_string[1:-1].split(',')])
+
+                # Get the spatial size of the patch
+                patch_size = patch['image'].shape[1:]  # assuming patch['image'] is a 4D tensor with shape (C, H, W, D)
+
+                # Get the coordinates of the patch's origin in world space
+                patch_origin = patch['image_meta_dict']['affine'] @ np.array([0, 0, 0, 1])
+
+                # Calculate the coordinates of the patch's corners in world space
+                patch_bbox = [patch_origin[0], patch_origin[0] + patch_size[0], 
+                            patch_origin[1], patch_origin[1] + patch_size[1], 
+                            patch_origin[2], patch_origin[2] + patch_size[2]]
+
+                # Check if the patch and bounding box intersect
+                if (bbox[0] < patch_bbox[1] and bbox[1] > patch_bbox[0] and
+                    bbox[2] < patch_bbox[3] and bbox[3] > patch_bbox[2] and
+                    bbox[4] < patch_bbox[5] and bbox[5] > patch_bbox[4]):
+                    # The patch intersects with the bounding box, assign a higher weight
+                    weight = 1.0
+                else:
+                    # The patch does not intersect with the bounding box, assign a lower weight
+                    weight = 0.5
+
+            weights.append(weight)
+
+        return weights
+
+class miccaimonaiweightDataset:
     def __new__(cls, cfg, mode):
         
         datapath = cfg.dataset.path
@@ -72,40 +142,40 @@ class miccaimonaiDataset:
                         #     mode=("bilinear", "nearest"),
                         # ),
                         EnsureTyped(keys=["image", "label"], track_meta=False),
-                        RandCropByPosNegLabeld(
-                            keys=["image", "label"],
+                        WeightedRandCropByPosNegLabeld(
+                            keys=["image", "label", "extra"],
                             label_key="label",
                             spatial_size=plans['configurations'][model]['patch_size'],
                             pos=1,
                             neg=1,
                             num_samples=num_samples,
                         ),
-                        # RandFlipd(
-                        #     keys=["image", "label"],
-                        #     spatial_axis=[0],
-                        #     prob=0.10,
-                        # ),
-                        # RandFlipd(
-                        #     keys=["image", "label"],
-                        #     spatial_axis=[1],
-                        #     prob=0.10,
-                        # ),
-                        # RandFlipd(
-                        #     keys=["image", "label"],
-                        #     spatial_axis=[2],
-                        #     prob=0.10,
-                        # ),
-                        # RandRotate90d(
-                        #     keys=["image", "label"],
-                        #     prob=0.10,
-                        #     max_k=3,
-                        #     spatial_axes=(1,2),
-                        # ),
-                        # RandShiftIntensityd(
-                        #     keys=["image"],
-                        #     offsets=0.10,
-                        #     prob=0.50,
-                        # ),
+                        RandFlipd(
+                            keys=["image", "label"],
+                            spatial_axis=[0],
+                            prob=0.10,
+                        ),
+                        RandFlipd(
+                            keys=["image", "label"],
+                            spatial_axis=[1],
+                            prob=0.10,
+                        ),
+                        RandFlipd(
+                            keys=["image", "label"],
+                            spatial_axis=[2],
+                            prob=0.10,
+                        ),
+                        RandRotate90d(
+                            keys=["image", "label"],
+                            prob=0.10,
+                            max_k=3,
+                            spatial_axes=(1,2),
+                        ),
+                        RandShiftIntensityd(
+                            keys=["image"],
+                            offsets=0.10,
+                            prob=0.50,
+                        ),
                     ]
                 )
             
