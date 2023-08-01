@@ -277,7 +277,7 @@ class LumenLoss(nn.Module):
         self.ce_loss.sample_weight = w_smp
         self.dice_loss.sample_weight = w_smp
         self.dt_loss.sample_weight = w_smp
-        self.ce_loss.sample_weight = w_smp
+        self.ace_loss.sample_weight = w_smp
         loss1 = self.ce_loss(y_out,y_tg)
         loss2 = self.dice_loss(y_out,y_tg)
         loss3 = self.dt_loss(y_out,y_tg)
