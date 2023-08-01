@@ -64,7 +64,7 @@ class miccaimonaiDataset:
                             subtrahend=dataset_fingerprint["foreground_intensity_properties_per_channel"][fold]["mean"],
                             divisor=dataset_fingerprint["foreground_intensity_properties_per_channel"][fold]["std"],),
                         # CropForegroundd(keys=["image", "label"], source_key="image"),
-                        Orientationd(keys=["image", "label"], axcodes="SRA"),
+                        Orientationd(keys=["image", "label"], axcodes="IRA"),
                         ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=plans['configurations'][model]['patch_size']),
                         # Spacingd(
                         #     keys=["image", "label"],
@@ -127,7 +127,7 @@ class miccaimonaiDataset:
                             divisor=dataset_fingerprint["foreground_intensity_properties_per_channel"][fold]["std"],),
                         # CropForegroundd(keys=["image", "label"], source_key="image"),
                         # ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=plans['configurations'][model]['patch_size']),
-                        Orientationd(keys=["image", "label"], axcodes="SRA"),
+                        Orientationd(keys=["image", "label"], axcodes="IRA"),
                         # Spacingd(
                         #     keys=["image", "label"],
                         #     pixdim=plans['configurations'][model]['spacing'],

@@ -40,17 +40,6 @@ from monai.data import (
     load_decathlon_datalist,
 )
 
-class AddNf(MapTransform):
-    def __init__(self, keys, nf_values):
-        super().__init__(keys)
-        self.nf_values = nf_values
-
-    def __call__(self, data):
-        d = dict(data)
-        for key in self.keys:
-            d[key]['nf'] = self.nf_values[key]  # add 'nf' field to each item
-        return d
-
 class WeightedRandCropByPosNegLabeld(Randomizable, Transform):
     def __init__(self, keys, label_key, spatial_size, pos, neg, num_samples, image_key=None):
         self.cropper = RandCropByPosNegLabeld(keys, label_key, spatial_size, pos, neg, num_samples, image_key, allow_missing_keys=True)
@@ -71,15 +60,20 @@ class WeightedRandCropByPosNegLabeld(Randomizable, Transform):
                 cropped['weight'] = weight
         return croppeds
 
-    def calculate_weight(self, patches, bbox_string):
+    def calculate_weight(self, patches, extra_info):
         weights = []
+
+        # Here the extra_info is in '[x0 x1 y0 y1 z0 z1],[spacing0 spacing1 spacing2]' format and the stenosis bounding box can also be in '-1' format
+        # we need to split the extra_info into two parts: bbox and spacing
+        bbox_string, spacing_string = extra_info.split(',')
+
         for patch in patches:
             # check if the value of bbox is a string '-1' and then it will return weight 1
-            if bbox_string == '-1':
+            if bbox_string == '[-1]':
                 weight = 1.0
             else:
-                # transform the bbox in a string format '[x0, x1, y0, y1, z0, z1]' to a numpy array of ints [x0, x1, y0, y1, z0, z1]
-                bbox = np.array([int(i) for i in bbox_string[1:-1].split(',')])
+                # transform the bbox in a string format '[x0 x1 y0 y1 z0 z1]' to a numpy array of ints [x0, x1, y0, y1, z0, z1]
+                bbox = np.array([int(i) for i in bbox_string[1:-1].split(' ')])
 
                 # Get the spatial size of the patch
                 patch_size = patch['image'].shape[1:]  # assuming patch['image'] is a 4D tensor with shape (C, H, W, D)
@@ -97,14 +91,41 @@ class WeightedRandCropByPosNegLabeld(Randomizable, Transform):
                     bbox[2] < patch_bbox[3] and bbox[3] > patch_bbox[2] and
                     bbox[4] < patch_bbox[5] and bbox[5] > patch_bbox[4]):
                     # The patch intersects with the bounding box, assign a higher weight
-                    weight = 1.0
+                    weight = 5.0
                 else:
                     # The patch does not intersect with the bounding box, assign a lower weight
-                    weight = 0.5
+                    weight = 1.0
 
             weights.append(weight)
 
         return weights
+
+# Only for validation and test
+class ProcessExtraKey(MapTransform):
+    def __init__(self, keys):
+        super().__init__(keys)
+
+    def __call__(self, data):
+        for key in self.keys:
+            extra = data[key]
+            # process the 'extra' data here
+            processed_data = self.process(extra)
+            
+            # save the processed data as new keys
+            data[f"meta"] = processed_data
+            del data[key]
+        return data
+
+    def process(self, extra):
+
+        # Here the extra_info is in '[x0 x1 y0 y1 z0 z1],[spacing0 spacing1 spacing2]' format and the stenosis bounding box can also be in '-1' format
+        # I want to store these information in a dictionary with keys 'bbox' and 'spacing'
+        bbox_string, spacing_string = extra.split(',')
+        bbox = np.array([int(i) for i in bbox_string[1:-1].split(' ')])
+        spacing = np.array([float(i) for i in spacing_string[1:-1].split(' ')])
+        processed_data = {'s_bbox': bbox, 'spacing': spacing}
+
+        return processed_data
 
 class miccaimonaiweightDataset:
     def __new__(cls, cfg, mode):
@@ -134,7 +155,7 @@ class miccaimonaiweightDataset:
                             subtrahend=dataset_fingerprint["foreground_intensity_properties_per_channel"][fold]["mean"],
                             divisor=dataset_fingerprint["foreground_intensity_properties_per_channel"][fold]["std"],),
                         # CropForegroundd(keys=["image", "label"], source_key="image"),
-                        Orientationd(keys=["image", "label"], axcodes="SRA"),
+                        Orientationd(keys=["image", "label"], axcodes="IRA"),
                         ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=plans['configurations'][model]['patch_size']),
                         # Spacingd(
                         #     keys=["image", "label"],
@@ -197,12 +218,14 @@ class miccaimonaiweightDataset:
                             divisor=dataset_fingerprint["foreground_intensity_properties_per_channel"][fold]["std"],),
                         # CropForegroundd(keys=["image", "label"], source_key="image"),
                         # ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=plans['configurations'][model]['patch_size']),
-                        Orientationd(keys=["image", "label"], axcodes="SRA"),
+                        Orientationd(keys=["image", "label"], axcodes="SLP"),
+                        # Orientationd(keys=["image", "label"], axcodes="IRA"),
                         # Spacingd(
                         #     keys=["image", "label"],
                         #     pixdim=plans['configurations'][model]['spacing'],
                         #     mode=("bilinear", "nearest"),
                         # ),
+                        ProcessExtraKey(keys=["extra"]),
                         EnsureTyped(keys=["image", "label"], track_meta=False),
                     ]
                 )
@@ -210,6 +233,7 @@ class miccaimonaiweightDataset:
                 val_files = load_decathlon_datalist(datapath, True, "validation")
             elif mode == 'test':
                 val_files = load_decathlon_datalist(datapath, True, "test")
+
             dataset = SmartCacheDataset(data=val_files, transform=cls.transform, cache_num = cfg.dataset.num_cache_val)
             dataloader = ThreadDataLoader(dataset, num_workers=0, batch_size=cfg.exp[mode].batch_size)
         

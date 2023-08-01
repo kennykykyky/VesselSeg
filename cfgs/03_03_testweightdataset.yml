@@ -29,18 +29,19 @@ exp:
         n_repeat: 1
         confusion_matrix:
         classification_curve:
-        enable: true
+            enable: true
         metrics_all_cases:
-        enable: true
+            enable: true
         dice: true
         save_seg:
-        enable: true
+            enable: true
 
 dataset:
     name: miccaimonaiweightDataset
-    path: ./data/MICCAI_MONAI/MICCAI_CAS_2023_weight.json
+    path: ./data/MICCAI_MONAI/MICCAI_CAS_2023_extra.json
     num_cache_train: 6
     num_cache_val: 2  
+    num_samples: 2
 
 model:
     name: nnunet_model

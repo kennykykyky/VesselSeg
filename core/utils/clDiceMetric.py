@@ -12,7 +12,8 @@ def cl_score(v, s):
     Returns:
         [float]: [computed skeleton volume intersection]
     """
-    return np.sum(v*s)/np.sum(s)
+    epsilon = 1e-5
+    return np.sum(v*s)/np.sum(s+epsilon)
 
 
 def clDice(v_p, v_l):

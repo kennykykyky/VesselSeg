@@ -1,24 +1,32 @@
 from medpy.metric.binary import assd
 import numpy as np
+import pdb
+import os
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 
-def ahd_metric(pred_img, gt):
-    # no stenosis for now; copied code
-    pos_s = -1
+def ahd_metric(pred_mask, img, gt, spacing, pos_s):
 
-    ahd = assd(pred_img, gt)
+    ahd = assd(pred_mask, gt, voxelspacing=spacing)
 
-    # it's normalized using some excel sheet with values
-    # ahd_score = max((nc - ahd) / nc, 0)
+    nf, nf_s = _compute_norm_factor(img, gt, spacing, pos_s)
 
-    return ahd
+    ahd_score = max((nf - ahd) / nf, 0)
 
+    if pos_s.shape[0] == 6:
+        mask_s = gt[pos_s[0]:pos_s[1], pos_s[2]:pos_s[3], pos_s[4]:pos_s[5]]
+        pred_img_s = pred_mask[pos_s[0]:pos_s[1], pos_s[2]:pos_s[3], pos_s[4]:pos_s[5]]
+        
+        if pred_img_s.sum() > 0:
+            ahd_s = assd(pred_img_s, mask_s, voxelspacing=spacing)
+        else:
+            ahd_s = nf_s
+        
+        ahd_score_s = max((nf_s - ahd_s) / nf_s, 0)
+    else:
+        ahd_score_s = 0
 
-
-def DSC(pred_img, label_img):
-    A = label_img > 0.5 * np.max(label_img)
-    B = pred_img > 0.5 * np.max(pred_img)
-    return 2*np.sum(A[A==B])/(np.sum(A)+np.sum(B))
-
+    return ahd_score, ahd_score_s
 
 def _compute_norm_factor(img, mask, spacing, pos_s):
     # compute the norm facter of AHD scores
@@ -29,8 +37,22 @@ def _compute_norm_factor(img, mask, spacing, pos_s):
         pred_img = img > img.max() * th
         ahd.append(assd(pred_img, mask, voxelspacing=spacing))
 
-    if pos_s != -1:
+    # determine if pos_s is a shape [6,1] array or length 1 array
+    if pos_s.shape[0] == 6:
         mask_s = mask[pos_s[0]:pos_s[1], pos_s[2]:pos_s[3], pos_s[4]:pos_s[5]]
+
+        # # plot 2d image of mask[59] as img with the 2d bounding box from img[pos_s[2]:pos_s[3], pos_s[4]:pos_s[5]]
+        # mip_x = np.max(img, axis=0)
+        # fig, axs = plt.subplots(2, 3, figsize=(15, 10))
+        # # Plot MIP images along x, y, and z axes
+        # axs[0, 0].imshow(mip_x, cmap='gray')
+        # axs[1, 0].imshow(mip_x, cmap='gray')
+        # axs[1, 0].imshow(np.max(mask, axis=0), cmap='jet', alpha=0.4)
+        # bbox_coords = pos_s[2:]
+        # rect = patches.Rectangle((bbox_coords[0], bbox_coords[2]),abs(bbox_coords[1] - bbox_coords[0]),abs(bbox_coords[3] - bbox_coords[2]),linewidth=1, edgecolor = 'red', facecolor='none')
+        # axs[1,0].add_patch(rect)
+        # plt.savefig('/home/kaiyu/project/VesselSeg/tmp/test_stenosis.png')
+
         pred_img_s = pred_img[pos_s[0]:pos_s[1], pos_s[2]:pos_s[3], pos_s[4]:pos_s[5]]
         if pred_img_s.max() == False:
             pred_img_s[int(pred_img_s.shape[0]/2), int(pred_img_s.shape[1]/2), int(pred_img_s.shape[2]/2)] = 1

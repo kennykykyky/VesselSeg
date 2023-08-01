@@ -28,10 +28,11 @@ exp:
         path_model_trained: null
 
 dataset:
-    name: miccaimonaiDataset
-    path: ./data/MICCAI_MONAI/MICCAI_CAS_2023.json
+    name: miccaimonaiweightDataset
+    path: ./data/MICCAI_MONAI/MICCAI_CAS_2023_extra.json
     num_cache_train: 60
-    num_cache_val: 10  
+    num_cache_val: 10
+    num_samples: 2
 
 model:
     name: nnunet_model

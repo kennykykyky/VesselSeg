@@ -29,7 +29,7 @@ from einops.einops import rearrange, repeat
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-from skimage import measure
+from skimage import measure 
 from collections import OrderedDict
 from sklearn import metrics
 from collections import OrderedDict
@@ -122,13 +122,15 @@ class nnUNetModel(nn.Module):
         # The input of the gt2onehot function should be [C, B, ...], where C is the number of classes
         self.output['gt'] = self.gt2onehot(segs.permute(1, 0, 2, 3, 4)).permute(1, 0, 2, 3, 4)
         self.imgs = imgs
-        del data, segs, imgs
 
         if not self.training:
             with torch.no_grad():
                 with torch.cuda.amp.autocast():
                     # sliding window inference is used to get better inference results (from MONAI)
                     self.output['logits'] = sliding_window_inference(self.imgs, roi_size=self.plans['configurations'][self.cfg.exp.nnunet_result.model]['patch_size'], sw_batch_size=4, predictor=self.net)
+                    self.output['spacing'] = data['meta']['spacing'].detach().cpu().numpy().reshape(3,-1).squeeze()
+                    self.output['s_bbox'] = data['meta']['s_bbox'].detach().cpu().numpy().astype(np.int32)
+                    self.output['s_bbox'] = self.output['s_bbox'].reshape(-1,1) if self.output['s_bbox'].shape[-1] != 6 else self.output['s_bbox'].reshape(6,-1).squeeze()
         else:
             with torch.cuda.amp.autocast():
                 self.output['logits'] = self.net(self.imgs)
@@ -137,6 +139,8 @@ class nnUNetModel(nn.Module):
         self.output['mask'] = (self.binary(torch.sigmoid(self.output['logits'][:,1])) > self.threshold).float() # single channel mask
         # transform single channel mask into one-hot format and save as self.output['mask_onehot']
         self.output['mask_onehot'] = self.gt2onehot(self.output['mask'].unsqueeze(0)).permute(1, 0, 2, 3, 4)
+
+        del data, segs, imgs
 
         return self.output['logits'][:,1] # actually this return value is not important if you don't use it in get_metrics() function
     
@@ -172,7 +176,7 @@ class nnUNetModel(nn.Module):
                 self.metrics_epoch[k] = v / len(getattr(self.cfg.var.obj_operator, f'{mode}_set'))
             
         self.metrics_epoch['metric_final'] = self.metrics_epoch['dice']
-        
+
         if self.cfg.exp.mode == 'test':
             if self.cfg.exp.test.classification_curve.enable:
                 seg_gt_roc = np.concatenate(self.gt_roc)
@@ -236,8 +240,21 @@ class nnUNetModel(nn.Module):
             self.metrics_iter['clDice'] = clDice(self.output['mask'].detach().cpu().numpy().squeeze(), seg_gt.detach().cpu().numpy().squeeze())
 
             if mode in ['val', 'test']:
-                self.metrics_iter['ahd'] = ahd_metric(self.output['mask'].detach().cpu().numpy().squeeze(), self.output['gt'][:,1].detach().cpu().numpy().squeeze())
-                self.metrics_iter['ahd_monai'] = compute_hausdorff_distance(self.output['mask_onehot'], self.output['gt'])
+                self.metrics_iter['ahd'], self.metrics_iter['ahd_s'] = ahd_metric(self.output['mask'].detach().cpu().numpy().squeeze(),
+                                                    self.imgs.detach().cpu().numpy().squeeze(),
+                                                     self.output['gt'][:,1].detach().cpu().numpy().squeeze(),
+                                                     self.output['spacing'],
+                                                     self.output['s_bbox'])
+                pos_s = self.output['s_bbox']
+                if pos_s.shape[0] == 6:
+                    self.metrics_iter['dice_s'] = self.dice(seg_gt[:, pos_s[0]:pos_s[1], pos_s[2]:pos_s[3], pos_s[4]:pos_s[5]], 
+                                                        self.output['mask'][:,pos_s[0]:pos_s[1], pos_s[2]:pos_s[3], pos_s[4]:pos_s[5]], 
+                                                        dims_sum=tuple(range(len(seg_gt.shape))), 
+                                                        return_before_divide=False)
+                    self.metrics_iter['final_score'] = 0.5 * self.metrics_iter['dice'] + 0.5 * self.metrics_iter['ahd']
+                else:
+                    self.metrics_iter['dice_s'] = 0
+                    self.metrics_iter['final_score'] = 0.35 * self.metrics_iter['dice'] + 0.35 * self.metrics_iter['ahd']+ 0.15 * self.metrics_iter['ahd_s']+ 0.15 * self.metrics_iter['dice_s']
 
             if self.cfg.exp.mode == 'test':
                 if self.cfg.exp.test.classification_curve.enable:
@@ -276,7 +293,7 @@ class nnUNetModel(nn.Module):
                     
                 fig.suptitle('{}_epoch{}.png'.format(mode, global_step))
                 if not self.training:
-                    plt.savefig('tmp/test_plot_{}.png'.format(global_step))
+                    plt.savefig('tmp/check_test_plot/test_plot_{}.png'.format(global_step))
 
                 writer.add_figure(mode, fig, global_step)
                 if self.cfg.var.obj_operator.is_best:

@@ -19,7 +19,7 @@ exp:
             adam:
                 weight_decay: 1e-5
     val:
-        skip_initial_val: True
+        skip_initial_val: False
         batch_size: 1
         n_epochs_once: 20
 
@@ -28,10 +28,10 @@ exp:
         path_model_trained: null
 
 dataset:
-    name: miccaimonaiDataset
-    path: ./data/MICCAI_MONAI/MICCAI_CAS_2023.json
-    num_cache_train: 12
-    num_cache_val: 2
+    name: miccaimonaiweightDataset
+    path: ./data/MICCAI_MONAI/MICCAI_CAS_2023_extra.json
+    num_cache_train: 60
+    num_cache_val: 10
     num_samples: 2
 
 model:
