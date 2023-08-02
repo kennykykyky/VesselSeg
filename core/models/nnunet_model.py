@@ -136,7 +136,8 @@ class nnUNetModel(nn.Module):
                 self.output['logits'] = self.net(self.imgs)
 
         # for binary segmentation, the binary function can generate a better segmentation sensitivity
-        self.output['mask'] = (self.binary(torch.sigmoid(self.output['logits'][:,1])) > self.threshold).float() # single channel mask
+        # self.output['mask'] = (self.binary(torch.sigmoid(self.output['logits'][:,1])) > self.threshold).float() # single channel mask
+        self.output['mask'] = torch.argmax(self.output['logits'], dim=1) # single channel mask
         # transform single channel mask into one-hot format and save as self.output['mask_onehot']
         self.output['mask_onehot'] = self.gt2onehot(self.output['mask'].unsqueeze(0)).permute(1, 0, 2, 3, 4)
 
@@ -154,8 +155,9 @@ class nnUNetModel(nn.Module):
         return loss
 
     def loss_lumen(self):
-        # The input for loss function should be [B, C, ...], where C is 1
-        loss = self.lumen_loss(self.imgs, self.output['logits'][:, 1].unsqueeze(1), self.output['gt'][:, 1].unsqueeze(1), self.sample_weight)
+        # The input for loss function should be [B, C, ...], where C is 2 for binary segmentation
+        # loss = self.lumen_loss(self.imgs, self.output['logits'], self.output['gt'][:, 1], self.sample_weight)
+        loss = self.lumen_loss(self.imgs, self.output['logits'], self.output['gt'][:, 1].unsqueeze(1), self.sample_weight)
         return loss
 
     def before_epoch(self, mode='train', i_repeat=0):
@@ -171,11 +173,12 @@ class nnUNetModel(nn.Module):
 
         for k, v in self.metrics_epoch.items():
             if self.training:
-                self.metrics_epoch[k] = v / len(getattr(self.cfg.var.obj_operator, f'{mode}_set')) * self.cfg.dataset.num_samples
+                self.metrics_epoch[k] = v / len(getattr(self.cfg.var.obj_operator, f'{mode}_set')) / self.cfg.dataset.num_samples
             else:
                 self.metrics_epoch[k] = v / len(getattr(self.cfg.var.obj_operator, f'{mode}_set'))
             
-        self.metrics_epoch['metric_final'] = self.metrics_epoch['dice']
+        pdb.set_trace()
+        self.metrics_epoch['metric_final'] = self.metrics_epoch['final_score']
 
         if self.cfg.exp.mode == 'test':
             if self.cfg.exp.test.classification_curve.enable:
@@ -234,10 +237,10 @@ class nnUNetModel(nn.Module):
 
         with torch.no_grad():
             seg_gt = self.output['gt'][:,1].type(torch.int64)
-            overlapx2, union = self.dice(seg_gt, self.output['mask'], dims_sum=tuple(range(len(seg_gt.shape))), return_before_divide=True)
+            dice = self.dice(seg_gt, self.output['mask'], dims_sum=tuple(range(1, len(seg_gt.shape))), return_before_divide=False)
 
-            self.metrics_iter['dice'] = (overlapx2 + 1e-8) / (union + 1e-8)
-            self.metrics_iter['clDice'] = clDice(self.output['mask'].detach().cpu().numpy().squeeze(), seg_gt.detach().cpu().numpy().squeeze())
+            self.metrics_iter['dice'] = dice.mean().item()
+            self.metrics_iter['clDice'] = clDice(self.output['mask'].detach().cpu().numpy().squeeze().astype(np.uint8), seg_gt.detach().cpu().numpy().squeeze().astype(np.uint8))
 
             if mode in ['val', 'test']:
                 self.metrics_iter['ahd'], self.metrics_iter['ahd_s'] = ahd_metric(self.output['mask'].detach().cpu().numpy().squeeze(),
@@ -262,7 +265,7 @@ class nnUNetModel(nn.Module):
                     self.pred_roc.append(self.output['logits'].cpu().numpy())
 
             for k, v in self.metrics_iter.items():
-                self.metrics_epoch[k] = self.metrics_epoch.get(k, 0.) + float(v)
+                self.metrics_epoch[k] = self.metrics_epoch.get(k, 0.) + float(v) * self.imgs.shape[0]
                 
         return self.metrics_iter
 

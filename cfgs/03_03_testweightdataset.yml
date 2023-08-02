@@ -19,7 +19,7 @@ exp:
             adam:
                 weight_decay: 1e-5
     val:
-        skip_initial_val: False
+        skip_initial_val: True
         batch_size: 1
         n_epochs_once: 10
 
@@ -48,5 +48,5 @@ model:
     ws_loss:
         cldiceloss: 0.5
         focal: 0.0
-        lumen: 0.5
+        lumen: 0.0
     w_focal: 0.5

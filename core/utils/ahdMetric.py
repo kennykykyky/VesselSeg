@@ -7,7 +7,10 @@ import matplotlib.patches as patches
 
 def ahd_metric(pred_mask, img, gt, spacing, pos_s):
 
-    ahd = assd(pred_mask, gt, voxelspacing=spacing)
+    if np.any(pred_mask) and np.any(gt):   # check if pred_img and mask contain any binary object
+        ahd = assd(pred_mask, gt, voxelspacing=spacing)
+    else:
+        pdb.set_trace()
 
     nf, nf_s = _compute_norm_factor(img, gt, spacing, pos_s)
 
@@ -34,14 +37,20 @@ def _compute_norm_factor(img, mask, spacing, pos_s):
     ahd = []
     ahd_s = []
     for th in [0.2, 0.3, 0.4]:
-        pred_img = img > img.max() * th
-        ahd.append(assd(pred_img, mask, voxelspacing=spacing))
+        if img.max() > 0:
+            pred_img = img > img.max() * th
+        else:
+            pred_img = img < img.min() * th 
+        if np.any(pred_img) and np.any(mask):   # check if pred_img and mask contain any binary object
+            ahd.append(assd(pred_img, mask, voxelspacing=spacing))
+        else:
+            pdb.set_trace()
 
     # determine if pos_s is a shape [6,1] array or length 1 array
     if pos_s.shape[0] == 6:
         mask_s = mask[pos_s[0]:pos_s[1], pos_s[2]:pos_s[3], pos_s[4]:pos_s[5]]
 
-        # # plot 2d image of mask[59] as img with the 2d bounding box from img[pos_s[2]:pos_s[3], pos_s[4]:pos_s[5]]
+        # # plot 2d image of mask[59] as img with the 2d bounding box from img [pos_s[2]:pos_s[3], pos_s[4]:pos_s[5]]
         # mip_x = np.max(img, axis=0)
         # fig, axs = plt.subplots(2, 3, figsize=(15, 10))
         # # Plot MIP images along x, y, and z axes
@@ -56,7 +65,10 @@ def _compute_norm_factor(img, mask, spacing, pos_s):
         pred_img_s = pred_img[pos_s[0]:pos_s[1], pos_s[2]:pos_s[3], pos_s[4]:pos_s[5]]
         if pred_img_s.max() == False:
             pred_img_s[int(pred_img_s.shape[0]/2), int(pred_img_s.shape[1]/2), int(pred_img_s.shape[2]/2)] = 1
-        ahd_s.append(assd(pred_img_s, mask_s, voxelspacing=spacing))
+        if np.any(pred_img_s) and np.any(mask_s):   # check if pred_img and mask contain any binary object
+            ahd_s.append(assd(pred_img_s, mask_s, voxelspacing=spacing))
+        else:
+            pdb.set_trace()
     else:
         ahd_s.append(-1)
 

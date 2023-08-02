@@ -2,6 +2,9 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
+import pdb
+
+# The input of the model is multi-channel logits, and therefore we need to modify the sigmoid function to softmax function and then select the second channel as forground probability
 
 class Binary(nn.Module):
     def __init__(self, th = 0.5, gamma=20):
@@ -134,7 +137,8 @@ class DT_Loss(nn.Module):
         self.register_buffer('eps',torch.FloatTensor([1.0e-6]))
         self.sample_weight = sample_weight
         
-        self.sigmoid = nn.Sigmoid()
+        # self.sigmoid = nn.Sigmoid()
+        self.softmax = nn.Softmax(dim=1)
         self.binary = Binary(th=0.5,gamma = 200)
     
         self.dt1 = CDT_3D(k=self.k_dt)
@@ -144,7 +148,8 @@ class DT_Loss(nn.Module):
 
     def forward(self,y_out,y_tg):
 
-        y_p = self.sigmoid(y_out)
+        y_p = self.softmax(y_out)[:, 1].unsqueeze(1)
+        # y_p = self.sigmoid(y_out)
         y_p_inv = self.one - y_p
         y = self.binary(y_p)
         y_inv = self.binary(y_p_inv)
@@ -175,11 +180,13 @@ class CE_Loss(nn.Module):
         self.register_buffer('pos_weight',torch.FloatTensor([pos_weight]))
         self.bce_loss = nn.BCEWithLogitsLoss(reduction='none', pos_weight=self.pos_weight)
         self.sample_weight = sample_weight
+        self.softmax = nn.Softmax(dim=1)
 
     def forward(self,y_out,y_tg):
         
+        y_out = self.softmax(y_out)[:, 1].unsqueeze(1)
         loss_pt = self.bce_loss(y_out,y_tg)
-        loss_pt_mean = torch.mean(loss_pt, dim=(1,2,3))
+        loss_pt_mean = torch.mean(loss_pt, dim=(-1,-2,-3))
         if not (self.sample_weight==None):
             loss = torch.mean(self.sample_weight*loss_pt_mean)/torch.mean(self.sample_weight)
         else:
@@ -195,14 +202,16 @@ class Dice_Loss(nn.Module):
         self.register_buffer('eps',torch.FloatTensor([1.0e-6]))
         self.register_buffer('one',torch.FloatTensor([1.00]))
         self.register_buffer('two',torch.FloatTensor([2.00]))
-        self.sigmoid = nn.Sigmoid()
+        # self.sigmoid = nn.Sigmoid()
+        self.softmax = nn.Softmax(dim=1)
         self.sample_weight = sample_weight
         
     def forward(self,y_out,y_tg):
         
-        y = self.sigmoid(y_out)
-        intersection = torch.sum(y * y_tg, dim=(1,2,3))
-        cardinality = torch.sum(y + y_tg, dim=(1,2,3))
+        # y = self.sigmoid(y_out)
+        y = self.softmax(y_out)[:, 1].unsqueeze(1)
+        intersection = torch.sum(y * y_tg, dim=(-1,-2,-3))
+        cardinality = torch.sum(y + y_tg, dim=(-1,-2,-3))
         d_loss = self.one - self.two * intersection /(cardinality + self.eps)
         if not (self.sample_weight==None):
             loss = torch.mean(self.sample_weight*d_loss)/torch.mean(self.sample_weight)
@@ -222,7 +231,8 @@ class ACE_Loss(nn.Module):
         self.register_buffer('b_dist',torch.FloatTensor([b_dist]))
         self.sample_weight = sample_weight
 
-        self.sigmoid = nn.Sigmoid()
+        # self.sigmoid = nn.Sigmoid()
+        self.softmax = nn.Softmax(dim=1)
         self.binary1 = Binary(th=0.5,gamma = 200)
         self.edge_detector = Laplacian_3D(laplacian_type='27-point')
         self.sobel = Sobel_3D(smooth_type='Scharr_2')
@@ -233,7 +243,8 @@ class ACE_Loss(nn.Module):
 
     def forward(self,x_in,y_out):
         # x_in is the input img3d and y_out is the output of the network
-        y = self.sigmoid(y_out)
+        # y = self.sigmoid(y_out)
+        y = self.softmax(y_out)[:, 1].unsqueeze(1)
         y = self.binary1(y)
         y1 = self.edge_detector(y)
         y2 = self.sobel(y)
