@@ -82,7 +82,7 @@ class nnUNetModel(nn.Module):
 
         # Here we import the different losses
         self.focal_loss = BinaryFocalLossWithLogits(alpha=cfg.model.w_focal, reduction='mean') # already has sigmoid
-        self.cldice_loss = soft_dice_cldice()
+        self.cldice_loss = soft_dice_cldice(alpha=self.cfg.model.w_cl)
         self.lumen_loss = LumenLoss(sample_weight = None, pos_weight =1.00, w_ce =0.3, w_dt = 0.3, w_ace=0.5, w_dice=1)
 
         # Here we import the different metrics

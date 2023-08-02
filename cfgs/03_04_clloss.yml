@@ -30,8 +30,8 @@ exp:
 dataset:
     name: miccaimonaiweightDataset
     path: ./data/MICCAI_MONAI/MICCAI_CAS_2023_extra.json
-    num_cache_train: 60
-    num_cache_val: 10
+    num_cache_train: 6
+    num_cache_val: 2
     num_samples: 2
 
 model:
@@ -41,3 +41,4 @@ model:
         focal: 0
         lumen: 0
     w_focal: 0.5
+    w_cl: 0.2

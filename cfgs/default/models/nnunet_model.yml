@@ -1,5 +1,6 @@
 model:
     w_focal: 0.9
+    w_cl: 0.5
     ws_loss:
         focal: 1.
 
