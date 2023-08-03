@@ -87,6 +87,6 @@ class soft_dice_cldice(nn.Module):
         skel_pred = soft_skel(self.softmax(y_pred), self.iter)
         skel_true = soft_skel(y_true, self.iter)
         tprec = (torch.sum(torch.multiply(skel_pred, y_true)[:,1:,...])+self.smooth)/(torch.sum(skel_pred[:,1:,...])+self.smooth)    
-        tsens = (torch.sum(torch.multiply(skel_true, y_pred)[:,1:,...])+self.smooth)/(torch.sum(skel_true[:,1:,...])+self.smooth)    
+        tsens = (torch.sum(torch.multiply(skel_true, self.softmax(y_pred))[:,1:,...])+self.smooth)/(torch.sum(skel_true[:,1:,...])+self.smooth)    
         cl_dice = 1.- 2.0*(tprec*tsens)/(tprec+tsens)
         return (1.0-self.alpha)*dice+self.alpha*cl_dice
