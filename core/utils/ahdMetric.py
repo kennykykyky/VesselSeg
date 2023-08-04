@@ -40,7 +40,7 @@ def _compute_norm_factor(img, mask, spacing, pos_s):
         if img.max() > 0:
             pred_img = img > img.max() * th
         else:
-            pred_img = img < img.min() * th 
+            pred_img = img > img.min() * th 
         if np.any(pred_img) and np.any(mask):   # check if pred_img and mask contain any binary object
             ahd.append(assd(pred_img, mask, voxelspacing=spacing))
         else:
@@ -52,14 +52,22 @@ def _compute_norm_factor(img, mask, spacing, pos_s):
 
         # # plot 2d image of mask[59] as img with the 2d bounding box from img [pos_s[2]:pos_s[3], pos_s[4]:pos_s[5]]
         # mip_x = np.max(img, axis=0)
+        # mip_z = np.max(img, axis=2)
         # fig, axs = plt.subplots(2, 3, figsize=(15, 10))
         # # Plot MIP images along x, y, and z axes
         # axs[0, 0].imshow(mip_x, cmap='gray')
         # axs[1, 0].imshow(mip_x, cmap='gray')
         # axs[1, 0].imshow(np.max(mask, axis=0), cmap='jet', alpha=0.4)
+        # axs[0, 1].imshow(mip_z, cmap='gray')
+        # axs[1, 1].imshow(mip_z, cmap='gray')
+        # axs[1, 1].imshow(np.max(mask, axis=2), cmap='jet', alpha=0.4)
         # bbox_coords = pos_s[2:]
-        # rect = patches.Rectangle((bbox_coords[0], bbox_coords[2]),abs(bbox_coords[1] - bbox_coords[0]),abs(bbox_coords[3] - bbox_coords[2]),linewidth=1, edgecolor = 'red', facecolor='none')
-        # axs[1,0].add_patch(rect)
+        # rect1 = patches.Rectangle((bbox_coords[2], bbox_coords[0]),abs(bbox_coords[3] - bbox_coords[2]),abs(bbox_coords[1] - bbox_coords[0]),linewidth=1, edgecolor = 'red', facecolor='none')
+        # axs[1,0].add_patch(rect1)
+        # bbox_coords = pos_s[:4]
+        # rect2 = patches.Rectangle((bbox_coords[2], bbox_coords[0]),abs(bbox_coords[3] - bbox_coords[2]),abs(bbox_coords[1] - bbox_coords[0]),linewidth=1, edgecolor = 'red', facecolor='none')
+        # axs[1,1].add_patch(rect2)
+        # pdb.set_trace()
         # plt.savefig('/home/kaiyu/project/VesselSeg/tmp/test_stenosis.png')
 
         pred_img_s = pred_img[pos_s[0]:pos_s[1], pos_s[2]:pos_s[3], pos_s[4]:pos_s[5]]

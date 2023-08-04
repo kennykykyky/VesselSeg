@@ -83,7 +83,7 @@ class nnUNetModel(nn.Module):
         # Here we import the different losses
         self.focal_loss = BinaryFocalLossWithLogits(alpha=cfg.model.w_focal, reduction='mean') # already has sigmoid
         self.cldice_loss = soft_dice_cldice(alpha=self.cfg.model.w_cl)
-        self.lumen_loss = LumenLoss(sample_weight = None, pos_weight =1.00, w_ce =0.3, w_dt = 0.3, w_ace=0.5, w_dice=1)
+        self.lumen_loss = LumenLoss(sample_weight = None, pos_weight =1.00, w_ce =self.cfg.model.w_ce, w_dt = self.cfg.model.w_dt, w_ace=self.cfg.model.w_ace, w_dice=self.cfg.model.w_dice)
 
         # Here we import the different metrics
         self.dice = Dice()
@@ -177,8 +177,7 @@ class nnUNetModel(nn.Module):
             else:
                 self.metrics_epoch[k] = v / len(getattr(self.cfg.var.obj_operator, f'{mode}_set'))
             
-        pdb.set_trace()
-        self.metrics_epoch['metric_final'] = self.metrics_epoch['final_score']
+        self.metrics_epoch['metric_final'] = self.metrics_epoch['dice']
 
         if self.cfg.exp.mode == 'test':
             if self.cfg.exp.test.classification_curve.enable:

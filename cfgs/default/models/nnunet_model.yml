@@ -1,6 +1,10 @@
 model:
     w_focal: 0.9
     w_cl: 0.5
+    w_ce: 0.5
+    w_dice: 0.5
+    w_ace: 0.5
+    w_dt: 0.5
     ws_loss:
         focal: 1.
 

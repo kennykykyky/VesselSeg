@@ -149,13 +149,14 @@ class miccaimonaiweightDataset:
             datalist = load_decathlon_datalist(datapath, True, "training")
             cls.transform = Compose(
                     [
-                        LoadImaged(keys=["image", "label"], ensure_channel_first=True, image_only=False),
+                        LoadImaged(keys=["image", "label"], reader = "NumpyReader", ensure_channel_first=True, image_only=False),
+                        # LoadImaged(keys=["image", "label"], ensure_channel_first=True, image_only=False),
                         NormalizeIntensityd(
                             keys=["image"],
                             subtrahend=dataset_fingerprint["foreground_intensity_properties_per_channel"][fold]["mean"],
                             divisor=dataset_fingerprint["foreground_intensity_properties_per_channel"][fold]["std"],),
                         # CropForegroundd(keys=["image", "label"], source_key="image"),
-                        Orientationd(keys=["image", "label"], axcodes="IRA"),
+                        Orientationd(keys=["image", "label"], axcodes="SRA"),
                         ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=plans['configurations'][model]['patch_size']),
                         # Spacingd(
                         #     keys=["image", "label"],
@@ -206,20 +207,24 @@ class miccaimonaiweightDataset:
                             cache_num = cfg.dataset.num_cache_train,
                         )
 
+
             dataloader = ThreadDataLoader(dataset, num_workers=0, batch_size=cfg.exp.train.batch_size, shuffle=True)
             
-        elif mode in ['val', 'test']:
+        # If load numpy file, you should use orientation SRA
+        # If load nii file, you should use orientation ILP
+        elif mode == 'val':
             cls.transform = Compose(
                     [
-                        LoadImaged(keys=["image", "label"], ensure_channel_first=True, image_only=False),
+                        LoadImaged(keys=["image", "label"], reader = "NumpyReader", ensure_channel_first=True, image_only=False),
+                        # LoadImaged(keys=["image", "label"], ensure_channel_first=True, image_only=False),
                         NormalizeIntensityd(
                             keys=["image"],
                             subtrahend=dataset_fingerprint["foreground_intensity_properties_per_channel"][fold]["mean"],
                             divisor=dataset_fingerprint["foreground_intensity_properties_per_channel"][fold]["std"],),
                         # CropForegroundd(keys=["image", "label"], source_key="image"),
                         # ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=plans['configurations'][model]['patch_size']),
-                        Orientationd(keys=["image", "label"], axcodes="SLP"),
-                        # Orientationd(keys=["image", "label"], axcodes="IRA"),
+                        # Orientationd(keys=["image", "label"], axcodes="ILP"),
+                        Orientationd(keys=["image", "label"], axcodes="SRA"),
                         # Spacingd(
                         #     keys=["image", "label"],
                         #     pixdim=plans['configurations'][model]['spacing'],
@@ -229,12 +234,29 @@ class miccaimonaiweightDataset:
                         EnsureTyped(keys=["image", "label"], track_meta=False),
                     ]
                 )
-            if mode == 'val':
-                val_files = load_decathlon_datalist(datapath, True, "validation")
-            elif mode == 'test':
-                val_files = load_decathlon_datalist(datapath, True, "test")
+            val_files = load_decathlon_datalist(datapath, True, "validation")
 
             dataset = SmartCacheDataset(data=val_files, transform=cls.transform, cache_num = cfg.dataset.num_cache_val)
+            dataloader = ThreadDataLoader(dataset, num_workers=0, batch_size=cfg.exp[mode].batch_size)
+
+        elif mode == 'test':
+            cls.transform = Compose(
+                    [
+                        LoadImaged(keys=["image", "label"], reader = "NumpyReader", ensure_channel_first=True, image_only=False),
+                        # LoadImaged(keys=["image", "label"], ensure_channel_first=True, image_only=False),
+                        NormalizeIntensityd(
+                            keys=["image"],
+                            subtrahend=dataset_fingerprint["foreground_intensity_properties_per_channel"][fold]["mean"],
+                            divisor=dataset_fingerprint["foreground_intensity_properties_per_channel"][fold]["std"],),
+                        # Orientationd(keys=["image", "label"], axcodes="ILP"),
+                        Orientationd(keys=["image", "label"], axcodes="SRA"),
+                        ProcessExtraKey(keys=["extra"]),
+                        EnsureTyped(keys=["image", "label"], track_meta=False),
+                    ]
+                )
+            test_files = load_decathlon_datalist(datapath, True, "test")
+
+            dataset = SmartCacheDataset(data=test_files, transform=cls.transform, cache_num = cfg.dataset.num_cache_test)
             dataloader = ThreadDataLoader(dataset, num_workers=0, batch_size=cfg.exp[mode].batch_size)
         
         return dataset, dataloader

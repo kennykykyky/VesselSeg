@@ -1,0 +1,49 @@
+exp:
+    name: 03_06_CL_gpu0 copy
+    names_exp_delete: ['tmp', 'train_03_06_CL_gpu0 copy']
+    idx_device: 0
+    customize_dataloader: True
+    nnunet_result: 
+        path: /home/kaiyu/project/nnUNet_dataset/nnUNet_results/Dataset301_SMRATOF/nnUNetTrainer__nnUNetPlans__3d_fullres
+        fold: 0
+        model: 3d_fullres
+        weights: ./save/SMRA_nnUnet.pth
+
+    train:
+        path_model_trained: null
+        batch_size: 2
+        select_mods: False
+        n_epochs: 200
+        optimizer:
+            name: adam
+            lr: 1e-5
+            adam:
+                weight_decay: 1e-5
+    val:
+        skip_initial_val: False
+        batch_size: 1
+        n_epochs_once: 5
+
+    test:
+        batch_size: 1
+        path_model_trained: null
+
+dataset:
+    name: miccaimonaiweightDataset
+    path: ./data/SMRA_MONAI_npy/MICCAI_CAS_2023_extra.json
+    num_cache_train: 70
+    num_cache_val: 20
+    num_cache_test: 10
+    num_samples: 2
+
+model:
+    name: nnunet_model
+    ws_loss:
+        cldiceloss: 1.0
+        focal: 0.0
+        lumen: 0.
+    w_cl: 1.0
+    w_ce: 0.
+    w_dice: 0.
+    w_ace: 0.
+    w_dt: 0.
