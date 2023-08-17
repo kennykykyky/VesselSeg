@@ -1,7 +1,7 @@
 exp:
-    name: 03_08_DT_gpu2
-    names_exp_delete: ['tmp', 'train_03_08_DT_gpu2']
-    idx_device: 2
+    name: 03_10_ACECL_gpu3
+    names_exp_delete: ['tmp', 'train_03_10_ACECL_gpu3']
+    idx_device: 3
     customize_dataloader: True
     nnunet_result: 
         path: /home/kaiyu/project/nnUNet_dataset/nnUNet_results/Dataset301_SMRATOF/nnUNetTrainer__nnUNetPlans__3d_fullres
@@ -16,13 +16,13 @@ exp:
         n_epochs: 200
         optimizer:
             name: adam
-            lr: 1e-5
+            lr: 1e-6
             adam:
                 weight_decay: 1e-5
     val:
         skip_initial_val: False
         batch_size: 1
-        n_epochs_once: 5
+        n_epochs_once: 3
 
     test:
         batch_size: 1
@@ -39,11 +39,11 @@ dataset:
 model:
     name: nnunet_model
     ws_loss:
-        cldiceloss: 0
+        cldiceloss: 1
         focal: 0.0
         lumen: 1.0
-    w_cl: 0.0
+    w_cl: 1.0
     w_ce: 0.
     w_dice: 0.
-    w_ace: 0.
-    w_dt: 1.0
+    w_ace: 1.
+    w_dt: 0.

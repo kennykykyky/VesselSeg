@@ -67,7 +67,6 @@ def _compute_norm_factor(img, mask, spacing, pos_s):
         # bbox_coords = pos_s[:4]
         # rect2 = patches.Rectangle((bbox_coords[2], bbox_coords[0]),abs(bbox_coords[3] - bbox_coords[2]),abs(bbox_coords[1] - bbox_coords[0]),linewidth=1, edgecolor = 'red', facecolor='none')
         # axs[1,1].add_patch(rect2)
-        # pdb.set_trace()
         # plt.savefig('/home/kaiyu/project/VesselSeg/tmp/test_stenosis.png')
 
         pred_img_s = pred_img[pos_s[0]:pos_s[1], pos_s[2]:pos_s[3], pos_s[4]:pos_s[5]]
@@ -76,7 +75,7 @@ def _compute_norm_factor(img, mask, spacing, pos_s):
         if np.any(pred_img_s) and np.any(mask_s):   # check if pred_img and mask contain any binary object
             ahd_s.append(assd(pred_img_s, mask_s, voxelspacing=spacing))
         else:
-            pdb.set_trace()
+            ahd_s.append(ahd_s.mean())
     else:
         ahd_s.append(-1)
 

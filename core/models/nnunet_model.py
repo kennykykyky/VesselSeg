@@ -29,7 +29,7 @@ from einops.einops import rearrange, repeat
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-from skimage import measure 
+from skimage import measure, morphology
 from collections import OrderedDict
 from sklearn import metrics
 from collections import OrderedDict
@@ -37,6 +37,7 @@ import torch.distributed as dist
 import os
 import json
 import pandas as pd
+import nibabel as nib
 
 mpl.use('agg')
 
@@ -107,7 +108,19 @@ class nnUNetModel(nn.Module):
     def forward(self, data):
         # should consider whether use single channel or one-hot for segmentation as the input for loss function
         # We will first transform labels into one-hot format, but select only second channel for binary segmentation to get more stable numerical results
-        imgs, segs = data['image'], data['label'].long()
+        if 'label' in data.keys():
+            imgs, segs = data['image'], data['label'].long()
+            # for monai dataset, we usually don't use GPU to accelerate data loading and therefore we will move data to GPU here
+            imgs, segs = imgs.to(self.cfg.var.obj_operator.device), segs.to(self.cfg.var.obj_operator.device)
+            # The gt2onehot function will transform the segmentation into one-hot format
+            # The input of the gt2onehot function should be [C, B, ...], where C is the number of classes
+            self.output['gt'] = self.gt2onehot(segs.permute(1, 0, 2, 3, 4)).permute(1, 0, 2, 3, 4)
+        else:
+            imgs = data['image']
+            imgs = imgs.to(self.cfg.var.obj_operator.device)
+            segs = None
+
+        self.imgs = imgs
 
         # check if 'weight' is in data
         if 'weight' in data.keys():
@@ -115,22 +128,18 @@ class nnUNetModel(nn.Module):
         else:
             self.sample_weight = None
 
-        # for monai dataset, we usually don't use GPU to accelerate data loading and therefore we will move data to GPU here
-        imgs, segs = imgs.to(self.cfg.var.obj_operator.device), segs.to(self.cfg.var.obj_operator.device)
         self.cfg.var.n_samples = b = imgs.shape[0]
-        # The gt2onehot function will transform the segmentation into one-hot format
-        # The input of the gt2onehot function should be [C, B, ...], where C is the number of classes
-        self.output['gt'] = self.gt2onehot(segs.permute(1, 0, 2, 3, 4)).permute(1, 0, 2, 3, 4)
-        self.imgs = imgs
-
+        
         if not self.training:
             with torch.no_grad():
                 with torch.cuda.amp.autocast():
                     # sliding window inference is used to get better inference results (from MONAI)
                     self.output['logits'] = sliding_window_inference(self.imgs, roi_size=self.plans['configurations'][self.cfg.exp.nnunet_result.model]['patch_size'], sw_batch_size=4, predictor=self.net)
-                    self.output['spacing'] = data['meta']['spacing'].detach().cpu().numpy().reshape(3,-1).squeeze()
-                    self.output['s_bbox'] = data['meta']['s_bbox'].detach().cpu().numpy().astype(np.int32)
-                    self.output['s_bbox'] = self.output['s_bbox'].reshape(-1,1) if self.output['s_bbox'].shape[-1] != 6 else self.output['s_bbox'].reshape(6,-1).squeeze()
+                    if 'meta' in data.keys():
+                        self.output['spacing'] = data['meta']['spacing'].detach().cpu().numpy().reshape(3,-1).squeeze()
+                        self.output['s_bbox'] = data['meta']['s_bbox'].detach().cpu().numpy().astype(np.int32)
+                        self.output['s_bbox'] = self.output['s_bbox'].reshape(-1,1) if self.output['s_bbox'].shape[-1] != 6 else self.output['s_bbox'].reshape(6,-1).squeeze()
+                    self.output['image_meta_dict'] = data['image_meta_dict']
         else:
             with torch.cuda.amp.autocast():
                 self.output['logits'] = self.net(self.imgs)
@@ -171,55 +180,57 @@ class nnUNetModel(nn.Module):
     def after_epoch(self, mode='train'):
         self.metrics_epoch['metric_final'] = 0
 
-        for k, v in self.metrics_epoch.items():
-            if self.training:
-                self.metrics_epoch[k] = v / len(getattr(self.cfg.var.obj_operator, f'{mode}_set')) / self.cfg.dataset.num_samples
-            else:
-                self.metrics_epoch[k] = v / len(getattr(self.cfg.var.obj_operator, f'{mode}_set'))
-            
-        self.metrics_epoch['metric_final'] = self.metrics_epoch['dice']
+        if self.output['gt']:
 
-        if self.cfg.exp.mode == 'test':
-            if self.cfg.exp.test.classification_curve.enable:
-                seg_gt_roc = np.concatenate(self.gt_roc)
-                seg_pred_roc = np.concatenate(self.pred_roc)
-                fpr, tpr, thres = metrics.roc_curve(y_true=seg_gt_roc.reshape(-1), y_score=seg_pred_roc.reshape(-1))
-                df = pd.DataFrame({'fp_rate': fpr, 'tp_rate': tpr, 'threshold': thres})
-                df.to_csv(os.path.join(self.cfg.var.obj_operator.path_exp, 'roc_curve_pointwise.csv'), index=False)
-                precision, recall, thres = metrics.precision_recall_curve(y_true=seg_gt_roc.reshape(-1),
-                                                                          probas_pred=seg_pred_roc.reshape(-1))
-                df = pd.DataFrame({
-                    'precision': precision,
-                    'recall': recall,
-                    'threshold': np.concatenate([thres, [99999]])
-                })
-                df.to_csv(os.path.join(self.cfg.var.obj_operator.path_exp, 'precision_recall_curve_pointwise.csv'),
-                          index=False)
+            for k, v in self.metrics_epoch.items():
+                if self.training:
+                    self.metrics_epoch[k] = v / len(getattr(self.cfg.var.obj_operator, f'{mode}_set')) / self.cfg.dataset.num_samples
+                else:
+                    self.metrics_epoch[k] = v / len(getattr(self.cfg.var.obj_operator, f'{mode}_set'))
+                
+            self.metrics_epoch['metric_final'] = self.metrics_epoch['dice']
 
-                class_gt = np.max(np.max(seg_gt_roc, axis=2), axis=2)[:, 0] # [B]
-                class_pred = np.max(np.max(seg_pred_roc, axis=2), axis=2)[:, 0] # [B]
-                fpr, tpr, thres = metrics.roc_curve(y_true=class_gt, y_score=class_pred)
-                df = pd.DataFrame({'fp_rate': fpr, 'tp_rate': tpr, 'threshold': thres})
-                df.to_csv(os.path.join(self.cfg.var.obj_operator.path_exp, 'roc_curve_slicewise.csv'), index=False)
-                precision, recall, thres = metrics.precision_recall_curve(y_true=class_gt, probas_pred=class_pred)
-                df = pd.DataFrame({
-                    'precision': precision,
-                    'recall': recall,
-                    'threshold': np.concatenate([thres, [99999]])
-                })
-                df.to_csv(os.path.join(self.cfg.var.obj_operator.path_exp, 'precision_recall_curve_slicewise.csv'),
-                          index=False)
+        # if self.cfg.exp.mode == 'test':
+        #     if self.cfg.exp.test.classification_curve.enable:
+        #         seg_gt_roc = np.concatenate(self.gt_roc)
+        #         seg_pred_roc = np.concatenate(self.pred_roc)
+        #         fpr, tpr, thres = metrics.roc_curve(y_true=seg_gt_roc.reshape(-1), y_score=seg_pred_roc.reshape(-1))
+        #         df = pd.DataFrame({'fp_rate': fpr, 'tp_rate': tpr, 'threshold': thres})
+        #         df.to_csv(os.path.join(self.cfg.var.obj_operator.path_exp, 'roc_curve_pointwise.csv'), index=False)
+        #         precision, recall, thres = metrics.precision_recall_curve(y_true=seg_gt_roc.reshape(-1),
+        #                                                                   probas_pred=seg_pred_roc.reshape(-1))
+        #         df = pd.DataFrame({
+        #             'precision': precision,
+        #             'recall': recall,
+        #             'threshold': np.concatenate([thres, [99999]])
+        #         })
+        #         df.to_csv(os.path.join(self.cfg.var.obj_operator.path_exp, 'precision_recall_curve_pointwise.csv'),
+        #                   index=False)
 
-                dices = []
-                thresholds = np.linspace(np.min(seg_pred_roc), np.max(seg_pred_roc), 80)
-                for thre in thresholds:
-                    seg_pred_roc_thres = (seg_pred_roc > thre).astype(int)
-                    numerator = 2 * np.sum(seg_gt_roc * seg_pred_roc_thres, axis=tuple(range(len(seg_gt_roc.shape))))
-                    denominator = np.sum(seg_gt_roc + seg_pred_roc_thres, axis=tuple(range(len(seg_gt_roc.shape))))
-                    dice = (numerator + 1e-8) / (denominator + 1e-8)
-                    dices.append(dice)
-                df = pd.DataFrame({'dice': dices, 'threshold': thresholds})
-                df.to_csv(os.path.join(self.cfg.var.obj_operator.path_exp, 'thres_dice_curve.csv'), index=False)
+        #         class_gt = np.max(np.max(seg_gt_roc, axis=2), axis=2)[:, 0] # [B]
+        #         class_pred = np.max(np.max(seg_pred_roc, axis=2), axis=2)[:, 0] # [B]
+        #         fpr, tpr, thres = metrics.roc_curve(y_true=class_gt, y_score=class_pred)
+        #         df = pd.DataFrame({'fp_rate': fpr, 'tp_rate': tpr, 'threshold': thres})
+        #         df.to_csv(os.path.join(self.cfg.var.obj_operator.path_exp, 'roc_curve_slicewise.csv'), index=False)
+        #         precision, recall, thres = metrics.precision_recall_curve(y_true=class_gt, probas_pred=class_pred)
+        #         df = pd.DataFrame({
+        #             'precision': precision,
+        #             'recall': recall,
+        #             'threshold': np.concatenate([thres, [99999]])
+        #         })
+        #         df.to_csv(os.path.join(self.cfg.var.obj_operator.path_exp, 'precision_recall_curve_slicewise.csv'),
+        #                   index=False)
+
+        #         dices = []
+        #         thresholds = np.linspace(np.min(seg_pred_roc), np.max(seg_pred_roc), 80)
+        #         for thre in thresholds:
+        #             seg_pred_roc_thres = (seg_pred_roc > thre).astype(int)
+        #             numerator = 2 * np.sum(seg_gt_roc * seg_pred_roc_thres, axis=tuple(range(len(seg_gt_roc.shape))))
+        #             denominator = np.sum(seg_gt_roc + seg_pred_roc_thres, axis=tuple(range(len(seg_gt_roc.shape))))
+        #             dice = (numerator + 1e-8) / (denominator + 1e-8)
+        #             dices.append(dice)
+        #         df = pd.DataFrame({'dice': dices, 'threshold': thresholds})
+        #         df.to_csv(os.path.join(self.cfg.var.obj_operator.path_exp, 'thres_dice_curve.csv'), index=False)
 
     def get_metrics(self, data, output, mode='train'):
         """
@@ -228,77 +239,107 @@ class nnUNetModel(nn.Module):
             other metrics: for visualization
         """
         self.metrics_iter = OrderedDict(loss_final=0.)
-        for name_loss, w in self.cfg.model.ws_loss.items():
-            if w > 0.:
-                loss = getattr(self, f'loss_{name_loss}')()
-                self.metrics_iter[name_loss] = loss.item()
-                self.metrics_iter['loss_final'] += w * loss
 
-        with torch.no_grad():
-            seg_gt = self.output['gt'][:,1].type(torch.int64)
-            dice = self.dice(seg_gt, self.output['mask'], dims_sum=tuple(range(1, len(seg_gt.shape))), return_before_divide=False)
+        if self.output['gt']:
+            for name_loss, w in self.cfg.model.ws_loss.items():
+                if w > 0.:
+                    loss = getattr(self, f'loss_{name_loss}')()
+                    self.metrics_iter[name_loss] = loss.item()
+                    self.metrics_iter['loss_final'] += w * loss
 
-            self.metrics_iter['dice'] = dice.mean().item()
-            self.metrics_iter['clDice'] = clDice(self.output['mask'].detach().cpu().numpy().squeeze().astype(np.uint8), seg_gt.detach().cpu().numpy().squeeze().astype(np.uint8))
+            with torch.no_grad():
+                
+                    seg_gt = self.output['gt'][:,1].type(torch.int64)
+                    dice = self.dice(seg_gt, self.output['mask'], dims_sum=tuple(range(1, len(seg_gt.shape))), return_before_divide=False)
 
-            if mode in ['val', 'test']:
-                self.metrics_iter['ahd'], self.metrics_iter['ahd_s'] = ahd_metric(self.output['mask'].detach().cpu().numpy().squeeze(),
-                                                    self.imgs.detach().cpu().numpy().squeeze(),
-                                                     self.output['gt'][:,1].detach().cpu().numpy().squeeze(),
-                                                     self.output['spacing'],
-                                                     self.output['s_bbox'])
-                pos_s = self.output['s_bbox']
-                if pos_s.shape[0] == 6:
-                    self.metrics_iter['dice_s'] = self.dice(seg_gt[:, pos_s[0]:pos_s[1], pos_s[2]:pos_s[3], pos_s[4]:pos_s[5]], 
-                                                        self.output['mask'][:,pos_s[0]:pos_s[1], pos_s[2]:pos_s[3], pos_s[4]:pos_s[5]], 
-                                                        dims_sum=tuple(range(len(seg_gt.shape))), 
-                                                        return_before_divide=False)
-                    self.metrics_iter['final_score'] = 0.5 * self.metrics_iter['dice'] + 0.5 * self.metrics_iter['ahd']
-                else:
-                    self.metrics_iter['dice_s'] = 0
-                    self.metrics_iter['final_score'] = 0.35 * self.metrics_iter['dice'] + 0.35 * self.metrics_iter['ahd']+ 0.15 * self.metrics_iter['ahd_s']+ 0.15 * self.metrics_iter['dice_s']
+                    self.metrics_iter['dice'] = dice.mean().item()
+                    self.metrics_iter['clDice'] = clDice(self.output['mask'].detach().cpu().numpy().squeeze().astype(np.uint8), seg_gt.detach().cpu().numpy().squeeze().astype(np.uint8))
 
-            if self.cfg.exp.mode == 'test':
-                if self.cfg.exp.test.classification_curve.enable:
-                    self.gt_roc.append(seg_gt.cpu().numpy())
-                    self.pred_roc.append(self.output['logits'].cpu().numpy())
+                    if mode in ['val', 'test']:
+                        self.metrics_iter['ahd'], self.metrics_iter['ahd_s'] = ahd_metric(self.output['mask'].detach().cpu().numpy().squeeze(),
+                                                            self.imgs.detach().cpu().numpy().squeeze(),
+                                                            self.output['gt'][:,1].detach().cpu().numpy().squeeze(),
+                                                            self.output['spacing'],
+                                                            self.output['s_bbox'])
+                        pos_s = self.output['s_bbox']
+                        if pos_s.shape[0] == 6:
+                            self.metrics_iter['dice_s'] = self.dice(seg_gt[:, pos_s[0]:pos_s[1], pos_s[2]:pos_s[3], pos_s[4]:pos_s[5]], 
+                                                                self.output['mask'][:,pos_s[0]:pos_s[1], pos_s[2]:pos_s[3], pos_s[4]:pos_s[5]], 
+                                                                dims_sum=tuple(range(len(seg_gt.shape))), 
+                                                                return_before_divide=False)
+                            self.metrics_iter['final_score'] = 0.5 * self.metrics_iter['dice'] + 0.5 * self.metrics_iter['ahd']
+                        else:
+                            self.metrics_iter['dice_s'] = 0
+                            self.metrics_iter['final_score'] = 0.35 * self.metrics_iter['dice'] + 0.35 * self.metrics_iter['ahd']+ 0.15 * self.metrics_iter['ahd_s']+ 0.15 * self.metrics_iter['dice_s']
 
             for k, v in self.metrics_iter.items():
                 self.metrics_epoch[k] = self.metrics_epoch.get(k, 0.) + float(v) * self.imgs.shape[0]
+
+        if self.cfg.exp.mode == 'test':
+            if self.cfg.exp.test.classification_curve.enable:
+                self.gt_roc.append(seg_gt.cpu().numpy())
+                self.pred_roc.append(self.output['logits'].cpu().numpy())
+            
+            check = True
+            if check:
+                # plot the Maximum intensity projection in 3 directions of the image and the mask, where there are 6 plots that range in 2*3 grid
+                # the first row is the image and the second row is the mask
+                # the first column is the axial view, the second column is the coronal view, and the third column is the sagittal view
+                fig, ax = plt.subplots(2, 3, figsize=(15, 10))
+                # plot the axial view
+                ax[0, 0].imshow(np.max(self.imgs.detach().cpu().numpy().squeeze(), axis=0), cmap='gray')
+                ax[1, 0].imshow(np.max(self.output['mask'].detach().cpu().numpy().squeeze(), axis=0), cmap='gray')
+                # plot the coronal view
+                ax[0, 1].imshow(np.max(self.imgs.detach().cpu().numpy().squeeze(), axis=1), cmap='gray')
+                ax[1, 1].imshow(np.max(self.output['mask'].detach().cpu().numpy().squeeze(), axis=1), cmap='gray')
+                # plot the sagittal view
+                ax[0, 2].imshow(np.max(self.imgs.detach().cpu().numpy().squeeze(), axis=2), cmap='gray')
+                ax[1, 2].imshow(np.max(self.output['mask'].detach().cpu().numpy().squeeze(), axis=2), cmap='gray')
+                # save the figure
+                plt.savefig(os.path.join(self.cfg.var.obj_operator.path_exp, self.output['image_meta_dict']['filename_or_obj'][0].split('/')[-1].split('.')[0] + '.png'))
+                plt.close()
+
+            if self.cfg.exp.test.save_seg.enable:
+                # save image as nii file
+                seg = self.output['mask'].detach().cpu().numpy().squeeze().astype(np.uint8)
+                seg = np.transpose(seg, (1, 2, 0))
+                seg = nib.Nifti1Image(seg, np.eye(4))
+                # save the seg file with the same name as in the image_meta_dict
+                nib.save(seg, os.path.join(self.cfg.var.obj_operator.path_exp, self.output['image_meta_dict']['filename_or_obj'][0].split('/')[-1].split('.')[0] + '.nii.gz'))
                 
         return self.metrics_iter
 
     def vis(self, writer, global_step, data, output, mode, in_epoch):
 
-        if global_step % 10 == 0:
-            with torch.no_grad():            
-                n_rows, n_cols = 4, 4
-                img_grid = make_grid(self.imgs[0]).cpu().numpy()[0]
-                
-                select_index = np.random.choice(self.imgs[0].shape[-3], n_rows * n_cols, replace = False)
-                imgs_show = self.imgs[0, 0, select_index, ...].cpu().numpy()
-                segs_show = self.output['gt'][0, 1, select_index, ...].cpu().numpy()
-                preds_show = self.output['mask'][0, select_index, ...].cpu().numpy()
-                
-                fig, axes = plt.subplots(n_rows, n_rows, figsize = (12, 12))
-                if not hasattr(axes, 'reshape'):
-                    axes = [axes]
-                for i, ax in enumerate(axes.flatten()):
-                    ax.axis('off'), ax.set_xticks([]), ax.set_yticks([])
-                    ax.imshow(imgs_show[i], cmap='gray')
-                    conts_gt = measure.find_contours(segs_show[i].astype(np.uint8))
-                    for cont in conts_gt:
-                        ax.plot(cont[:, 1], cont[:, 0], linewidth=1, color='#0099ff')
-                    conts_pred = measure.find_contours(preds_show[i].astype(np.uint8))
-                    for cont in conts_pred:
-                        ax.plot(cont[:, 1], cont[:, 0], linewidth=1, color='#ffa500', alpha = 0.5)
+        if self.output['gt']:
+            if global_step % 10 == 0:
+                with torch.no_grad():            
+                    n_rows, n_cols = 4, 4
+                    img_grid = make_grid(self.imgs[0]).cpu().numpy()[0]
                     
-                fig.suptitle('{}_epoch{}.png'.format(mode, global_step))
-                if not self.training:
-                    plt.savefig('tmp/check_test_plot/test_plot_{}.png'.format(global_step))
+                    select_index = np.random.choice(self.imgs[0].shape[-3], n_rows * n_cols, replace = False)
+                    imgs_show = self.imgs[0, 0, select_index, ...].cpu().numpy()
+                    segs_show = self.output['gt'][0, 1, select_index, ...].cpu().numpy()
+                    preds_show = self.output['mask'][0, select_index, ...].cpu().numpy()
+                    
+                    fig, axes = plt.subplots(n_rows, n_rows, figsize = (12, 12))
+                    if not hasattr(axes, 'reshape'):
+                        axes = [axes]
+                    for i, ax in enumerate(axes.flatten()):
+                        ax.axis('off'), ax.set_xticks([]), ax.set_yticks([])
+                        ax.imshow(imgs_show[i], cmap='gray')
+                        conts_gt = measure.find_contours(segs_show[i].astype(np.uint8))
+                        for cont in conts_gt:
+                            ax.plot(cont[:, 1], cont[:, 0], linewidth=1, color='#0099ff')
+                        conts_pred = measure.find_contours(preds_show[i].astype(np.uint8))
+                        for cont in conts_pred:
+                            ax.plot(cont[:, 1], cont[:, 0], linewidth=1, color='#ffa500', alpha = 0.5)
+                        
+                    fig.suptitle('{}_epoch{}.png'.format(mode, global_step))
+                    # if not self.training:
+                    #     plt.savefig('tmp/check_test_plot/test_plot_{}.png'.format(global_step))
 
-                writer.add_figure(mode, fig, global_step)
-                if self.cfg.var.obj_operator.is_best:
-                    writer.add_figure(f'{mode}_best', fig, global_step)
-        
+                    writer.add_figure(mode, fig, global_step)
+                    if self.cfg.var.obj_operator.is_best:
+                        writer.add_figure(f'{mode}_best', fig, global_step)
         

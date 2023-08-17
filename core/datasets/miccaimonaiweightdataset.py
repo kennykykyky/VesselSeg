@@ -107,13 +107,16 @@ class ProcessExtraKey(MapTransform):
 
     def __call__(self, data):
         for key in self.keys:
-            extra = data[key]
-            # process the 'extra' data here
-            processed_data = self.process(extra)
-            
-            # save the processed data as new keys
-            data[f"meta"] = processed_data
-            del data[key]
+            if key in data.keys():
+                extra = data[key]
+                # process the 'extra' data here
+                processed_data = self.process(extra)
+                
+                # save the processed data as new keys
+                data[f"meta"] = processed_data
+                del data[key]
+            else:
+                continue
         return data
 
     def process(self, extra):
@@ -242,21 +245,20 @@ class miccaimonaiweightDataset:
         elif mode == 'test':
             cls.transform = Compose(
                     [
-                        LoadImaged(keys=["image", "label"], reader = "NumpyReader", ensure_channel_first=True, image_only=False),
+                        LoadImaged(keys=["image", "label"], reader = "NumpyReader", ensure_channel_first=True, image_only=False, allow_missing_keys=True),
                         # LoadImaged(keys=["image", "label"], ensure_channel_first=True, image_only=False),
                         NormalizeIntensityd(
                             keys=["image"],
                             subtrahend=dataset_fingerprint["foreground_intensity_properties_per_channel"][fold]["mean"],
                             divisor=dataset_fingerprint["foreground_intensity_properties_per_channel"][fold]["std"],),
                         # Orientationd(keys=["image", "label"], axcodes="ILP"),
-                        Orientationd(keys=["image", "label"], axcodes="SRA"),
+                        Orientationd(keys=["image", "label"], axcodes="SRA", allow_missing_keys=True),
                         ProcessExtraKey(keys=["extra"]),
-                        EnsureTyped(keys=["image", "label"], track_meta=False),
+                        EnsureTyped(keys=["image", "label"], track_meta=False, allow_missing_keys=True),
                     ]
                 )
             test_files = load_decathlon_datalist(datapath, True, "test")
-
-            dataset = SmartCacheDataset(data=test_files, transform=cls.transform, cache_num = cfg.dataset.num_cache_test)
+            dataset = SmartCacheDataset(data=test_files, transform=cls.transform, cache_num = cfg.dataset.num_cache_test, shuffle=False)
             dataloader = ThreadDataLoader(dataset, num_workers=0, batch_size=cfg.exp[mode].batch_size)
         
         return dataset, dataloader

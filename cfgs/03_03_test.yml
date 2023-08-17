@@ -1,7 +1,7 @@
 exp:
-    name: 03_08_DT_gpu2
-    names_exp_delete: ['tmp', 'train_03_08_DT_gpu2']
-    idx_device: 2
+    name: 03_03_test
+    names_exp_delete: ['tmp', 'train_03_03_test']
+    idx_device: 3
     customize_dataloader: True
     nnunet_result: 
         path: /home/kaiyu/project/nnUNet_dataset/nnUNet_results/Dataset301_SMRATOF/nnUNetTrainer__nnUNetPlans__3d_fullres
@@ -11,39 +11,42 @@ exp:
 
     train:
         path_model_trained: null
-        batch_size: 2
+        batch_size: 1
         select_mods: False
-        n_epochs: 200
         optimizer:
             name: adam
-            lr: 1e-5
+            lr: 3e-4
             adam:
                 weight_decay: 1e-5
     val:
-        skip_initial_val: False
+        skip_initial_val: True
         batch_size: 1
-        n_epochs_once: 5
+        n_epochs_once: 10
 
     test:
         batch_size: 1
         path_model_trained: null
+        n_repeat: 1
+        confusion_matrix:
+        classification_curve:
+            enable: true
+        metrics_all_cases:
+            enable: true
+        dice: true
+        save_seg:
+            enable: true
 
 dataset:
-    name: miccaimonaiweightDataset
+    name: smrastenosisDataset
     path: ./data/SMRA_MONAI_npy/MICCAI_CAS_2023_extra.json
-    num_cache_train: 70
-    num_cache_val: 20
-    num_cache_test: 10
+    num_cache_train: 1
+    num_cache_val: 2  
     num_samples: 2
 
 model:
     name: nnunet_model
     ws_loss:
-        cldiceloss: 0
+        cldiceloss: 0.5
         focal: 0.0
-        lumen: 1.0
-    w_cl: 0.0
-    w_ce: 0.
-    w_dice: 0.
-    w_ace: 0.
-    w_dt: 1.0
+        lumen: 0.0
+    w_focal: 0.5

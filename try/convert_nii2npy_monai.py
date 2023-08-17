@@ -4,7 +4,11 @@ import nibabel as nib
 
 def convert_nifti_to_numpy(input_folder, output_folder):
     # Define subdirectories
+    # subdirs = ['imagesTs']
     subdirs = ['imagesTr', 'imagesTs', 'labelsTr', 'labelsTs']
+
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
 
     # Iterate over each subdirectory
     for subdir in subdirs:
@@ -30,3 +34,4 @@ def convert_nifti_to_numpy(input_folder, output_folder):
 
 # Use the function
 convert_nifti_to_numpy('/home/kaiyu/project/VesselSeg/data/MICCAI_MONAI', '/home/kaiyu/project/VesselSeg/data/SMRA_MONAI_npy')
+# convert_nifti_to_numpy('/home/kaiyu/project/VesselSeg/data/CAS2023_test', '/home/kaiyu/project/VesselSeg/data/SMRA_MONAI_test_npy')

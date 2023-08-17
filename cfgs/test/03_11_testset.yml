@@ -1,8 +1,9 @@
 exp:
-    name: 03_03_testweightdataset
-    names_exp_delete: ['tmp', 'train_03_03_testweightdataset']
-    idx_device: 3
+    name: 03_11
+    names_exp_delete: ['tmp', 'test_03_11_testset']
+    idx_device: 0
     customize_dataloader: True
+    mode: test
     nnunet_result: 
         path: /home/kaiyu/project/nnUNet_dataset/nnUNet_results/Dataset301_SMRATOF/nnUNetTrainer__nnUNetPlans__3d_fullres
         fold: 0
@@ -21,32 +22,26 @@ exp:
     val:
         skip_initial_val: True
         batch_size: 1
-        n_epochs_once: 10
+        n_epochs_once: 5
 
     test:
         batch_size: 1
-        path_model_trained: null
-        n_repeat: 1
-        confusion_matrix:
-        classification_curve:
-            enable: true
+        path_model_trained: /home/kaiyu/project/VesselSeg/save/train_03_10_DTACE_gpu2_2023-08-07_15-03-15/checkpoints/model_epoch83.pth
         metrics_all_cases:
             enable: true
-        dice: true
         save_seg:
-            enable: true
-
+            enable: True
 dataset:
     name: miccaimonaiweightDataset
-    path: ./data/MICCAI_MONAI/MICCAI_CAS_2023_extra.json
-    num_cache_train: 6
-    num_cache_val: 2  
+    path: ./data/SMRA_MONAI_test_npy/MICCAI_CAS_2023_test.json
+    num_cache_train: 0
+    num_cache_val: 0
+    num_cache_test: 50
     num_samples: 2
 
 model:
     name: nnunet_model
     ws_loss:
-        cldiceloss: 0.5
-        focal: 0.0
-        lumen: 0.0
+        cldiceloss: 1
+        focal: 0
     w_focal: 0.5

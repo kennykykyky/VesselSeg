@@ -1,6 +1,6 @@
 exp:
-    name: 03_08_DT_gpu2
-    names_exp_delete: ['tmp', 'train_03_08_DT_gpu2']
+    name: 03_08_DTACE_gpu2
+    names_exp_delete: ['tmp', 'train_03_08_DTACE_gpu2']
     idx_device: 2
     customize_dataloader: True
     nnunet_result: 
@@ -22,7 +22,7 @@ exp:
     val:
         skip_initial_val: False
         batch_size: 1
-        n_epochs_once: 5
+        n_epochs_once: 1
 
     test:
         batch_size: 1
@@ -45,5 +45,5 @@ model:
     w_cl: 0.0
     w_ce: 0.
     w_dice: 0.
-    w_ace: 0.
-    w_dt: 1.0
+    w_ace: 0.5
+    w_dt: 0.5
