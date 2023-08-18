@@ -1,6 +1,6 @@
 exp:
-    name: 03_10
-    names_exp_delete: ['tmp', 'test_03_10_2023']
+    name: 03_11_testset_vesfil
+    names_exp_delete: ['tmp', 'test_03_11_testset_vesfil']
     idx_device: 0
     customize_dataloader: True
     mode: test
@@ -33,10 +33,10 @@ exp:
             enable: True
 dataset:
     name: miccaimonaiweightDataset
-    path: ./data/SMRA_MONAI_npy/MICCAI_CAS_2023_extra.json
-    num_cache_train: 70
-    num_cache_val: 20
-    num_cache_test: 10
+    path: ./data/SMRA_MONAI_test_npy/MICCAI_CAS_2023_test.json
+    num_cache_train: 0
+    num_cache_val: 0
+    num_cache_test: 50
     num_samples: 2
 
 model:

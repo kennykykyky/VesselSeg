@@ -21,6 +21,8 @@ from monai.losses import DiceLoss, FocalLoss
 
 import torch
 import pdb
+import cv2
+from skimage.filters import frangi
 from torchvision.utils import make_grid
 import torch.nn as nn
 import torch.nn.functional as F
@@ -38,6 +40,9 @@ import os
 import json
 import pandas as pd
 import nibabel as nib
+from scipy.ndimage import label, binary_fill_holes, find_objects
+from skimage.measure import regionprops
+from skimage.segmentation import flood_fill
 
 mpl.use('agg')
 
@@ -147,6 +152,7 @@ class nnUNetModel(nn.Module):
         # for binary segmentation, the binary function can generate a better segmentation sensitivity
         # self.output['mask'] = (self.binary(torch.sigmoid(self.output['logits'][:,1])) > self.threshold).float() # single channel mask
         self.output['mask'] = torch.argmax(self.output['logits'], dim=1) # single channel mask
+
         # transform single channel mask into one-hot format and save as self.output['mask_onehot']
         self.output['mask_onehot'] = self.gt2onehot(self.output['mask'].unsqueeze(0)).permute(1, 0, 2, 3, 4)
 
@@ -180,7 +186,7 @@ class nnUNetModel(nn.Module):
     def after_epoch(self, mode='train'):
         self.metrics_epoch['metric_final'] = 0
 
-        if self.output['gt']:
+        if isinstance(self.output['gt'], torch.Tensor):
 
             for k, v in self.metrics_epoch.items():
                 if self.training:
@@ -240,7 +246,7 @@ class nnUNetModel(nn.Module):
         """
         self.metrics_iter = OrderedDict(loss_final=0.)
 
-        if self.output['gt']:
+        if isinstance(self.output['gt'], torch.Tensor):
             for name_loss, w in self.cfg.model.ws_loss.items():
                 if w > 0.:
                     loss = getattr(self, f'loss_{name_loss}')()
@@ -266,16 +272,22 @@ class nnUNetModel(nn.Module):
                             self.metrics_iter['dice_s'] = self.dice(seg_gt[:, pos_s[0]:pos_s[1], pos_s[2]:pos_s[3], pos_s[4]:pos_s[5]], 
                                                                 self.output['mask'][:,pos_s[0]:pos_s[1], pos_s[2]:pos_s[3], pos_s[4]:pos_s[5]], 
                                                                 dims_sum=tuple(range(len(seg_gt.shape))), 
-                                                                return_before_divide=False)
-                            self.metrics_iter['final_score'] = 0.5 * self.metrics_iter['dice'] + 0.5 * self.metrics_iter['ahd']
+                                                                return_before_divide=False).detach().cpu().numpy().squeeze()
+                            self.metrics_iter['final_score'] = 0.35 * self.metrics_iter['dice'] + 0.35 * self.metrics_iter['ahd']+ 0.15 * self.metrics_iter['ahd_s']+ 0.15 * self.metrics_iter['dice_s']
                         else:
                             self.metrics_iter['dice_s'] = 0
-                            self.metrics_iter['final_score'] = 0.35 * self.metrics_iter['dice'] + 0.35 * self.metrics_iter['ahd']+ 0.15 * self.metrics_iter['ahd_s']+ 0.15 * self.metrics_iter['dice_s']
+                            self.metrics_iter['final_score'] = 0.5 * self.metrics_iter['dice'] + 0.5 * self.metrics_iter['ahd']
+                            
 
             for k, v in self.metrics_iter.items():
                 self.metrics_epoch[k] = self.metrics_epoch.get(k, 0.) + float(v) * self.imgs.shape[0]
 
         if self.cfg.exp.mode == 'test':
+
+            # filter the vessels around outside ICA at the first several z-slices
+            if self.imgs.shape[-1]/self.imgs.shape[-3] < 3.5:
+                self.output['mask'] = self.filter_vessel(self.output['mask']).to(torch.int64)
+
             if self.cfg.exp.test.classification_curve.enable:
                 self.gt_roc.append(seg_gt.cpu().numpy())
                 self.pred_roc.append(self.output['logits'].cpu().numpy())
@@ -299,6 +311,25 @@ class nnUNetModel(nn.Module):
                 plt.savefig(os.path.join(self.cfg.var.obj_operator.path_exp, self.output['image_meta_dict']['filename_or_obj'][0].split('/')[-1].split('.')[0] + '.png'))
                 plt.close()
 
+                if isinstance(self.output['gt'], torch.Tensor):
+                    # Save 3d difference map between ground truth and predicted masks
+                    # Compute differences
+                    FP = np.logical_and(self.output['mask'].detach().cpu().numpy().squeeze() == 1, self.output['gt'][0, 1].detach().cpu().numpy().squeeze() == 0)
+                    FN = np.logical_and(self.output['mask'].detach().cpu().numpy().squeeze() == 0, self.output['gt'][0, 1].detach().cpu().numpy().squeeze() == 1)
+                    TP = np.logical_and(self.output['mask'].detach().cpu().numpy().squeeze() == 1, self.output['gt'][0, 1].detach().cpu().numpy().squeeze() == 1)
+
+                    # Assign unique intensity values for visualization
+                    difference_data = np.zeros_like(self.output['gt'][0, 1].detach().cpu().numpy().squeeze())
+                    difference_data[FP] = 1  # False Positives marked as 1
+                    difference_data[FN] = 2  # False Negatives marked as 2
+                    difference_data[TP] = 3  # True Positives marked as 3
+                    # Note: True Negatives will have a value of 0
+                    difference_data = np.transpose(difference_data, (1, 2, 0))
+
+                    # Save the difference as a new NIfTI file
+                    difference_nii = nib.Nifti1Image(difference_data, np.eye(4))
+                    nib.save(difference_nii, os.path.join(self.cfg.var.obj_operator.path_exp, self.output['image_meta_dict']['filename_or_obj'][0].split('/')[-1].split('.')[0] + '_diff.nii.gz'))
+
             if self.cfg.exp.test.save_seg.enable:
                 # save image as nii file
                 seg = self.output['mask'].detach().cpu().numpy().squeeze().astype(np.uint8)
@@ -307,11 +338,17 @@ class nnUNetModel(nn.Module):
                 # save the seg file with the same name as in the image_meta_dict
                 nib.save(seg, os.path.join(self.cfg.var.obj_operator.path_exp, self.output['image_meta_dict']['filename_or_obj'][0].split('/')[-1].split('.')[0] + '.nii.gz'))
                 
+            # print the case name
+            print(self.output['image_meta_dict']['filename_or_obj'][0].split('/')[-1].split('.')[0])
+            # print the items in the self.metrics_iter
+            for k, v in self.metrics_iter.items():
+                print(k, v)
+
         return self.metrics_iter
 
     def vis(self, writer, global_step, data, output, mode, in_epoch):
 
-        if self.output['gt']:
+        if isinstance(self.output['gt'], torch.Tensor):
             if global_step % 10 == 0:
                 with torch.no_grad():            
                     n_rows, n_cols = 4, 4
@@ -343,3 +380,165 @@ class nnUNetModel(nn.Module):
                     if self.cfg.var.obj_operator.is_best:
                         writer.add_figure(f'{mode}_best', fig, global_step)
         
+    def filter_vessel(self, seg):
+
+        first_slice = seg[:, 0, :, :].squeeze()
+
+        # apply frangi filter to the first slice
+        frangi_slice = frangi(first_slice.detach().cpu().numpy())
+
+        # Assuming `frangi_img` is your frangi filtered image (numpy array)
+        threshold_value = np.percentile(frangi_slice, 99.5)  # you can adjust this threshold value
+        binary_img = frangi_slice > threshold_value
+        filled_img = binary_fill_holes(binary_img)
+
+        # Label connected components
+        labeled_img, num_features = label(filled_img)
+
+        # Define function to calculate circularity
+        def circularity(area, perimeter):
+            if perimeter == 0:
+                return 0
+            return 4 * np.pi * area / (perimeter ** 2)
+
+        # Extract region properties
+        regions = regionprops(labeled_img)
+
+        # Filter regions based on area and circularity
+        filtered_regions = [region for region in regions if circularity(region.area, region.perimeter) > 0.95]
+
+        # Sort regions based on area
+        sorted_regions = sorted(filtered_regions, key=lambda x: x.area, reverse=True)
+
+        # find the two regions that their center to image center distance are similar while the areas are in top 5
+        top_5_regions = sorted_regions[:5]
+
+        # calculate the distance between the center of the region and the center of the image
+        center = np.array([first_slice.shape[0] / 2, first_slice.shape[1] / 2])
+        center_distance = []
+        sum_connected_volume = []
+        for region in top_5_regions:
+            center_distance.append(np.linalg.norm(np.array(region.centroid) - center))
+            seg_copy = seg.detach().cpu().numpy().squeeze().copy()
+            # then use flood fill to find the connected components
+            seg_copy = flood_fill(seg_copy, (0, int(region.centroid[0]), int(region.centroid[1])), 2)
+            seg_copy[seg_copy == 1] = 0
+            sum_connected_volume.append(np.sum(seg_copy))
+
+        pdb.set_trace()
+        # selected the index of the two largest connected components
+        i, j = np.argsort(sum_connected_volume)[-2:]
+        ICA_regions = [top_5_regions[i], top_5_regions[j]]
+
+        # # Check all pairs
+        # candidate_pairs = []
+        # for i in range(len(top_5_regions)):
+        #     for j in range(i+1, len(top_5_regions)):
+        #         size_similarity = np.abs(top_5_regions[i].area - top_5_regions[j].area) / np.mean([top_5_regions[i].area, top_5_regions[j].area])
+        #         distance_similarity = np.abs(center_distance[i] - center_distance[j]) / np.mean([center_distance[i], center_distance[j]])
+        #         distance_diff = np.abs(center_distance[i] - center_distance[j])
+                
+        #         if size_similarity < 0.1:
+        #             candidate_pairs.append([i, j, size_similarity, distance_similarity, distance_diff])
+
+        # ICA_regions = None
+        # for i, j, size_similarity, distance_similarity, distance_diff in candidate_pairs:
+        #     if distance_diff > 0.2 * first_slice.shape[0]:
+        #         continue
+        #     else:
+        #         ICA_regions = [top_5_regions[i], top_5_regions[j]]
+        #         break
+
+        # if not ICA_regions:
+        #     i, j = candidate_pairs[0][0], candidate_pairs[0][1]
+        #     ICA_regions = [top_5_regions[i], top_5_regions[j]]
+        
+        # Extract top 2 regions
+        # ICA_regions = sorted_regions[:2]
+
+        # Create an empty image to visualize the regions
+        output = np.zeros_like(frangi_slice)
+
+        bbox = []
+        # Fill the output image with the top 2 regions
+        for region in ICA_regions:
+            coords = region.coords
+            center = region.centroid
+            # transfer the tuple to list for center
+            center = list(center)
+            if center[0] < 0.5 * first_slice.shape[0]:
+                bbox_value = [center[0] - region.axis_major_length, center[1] - region.axis_minor_length]
+            else:
+                bbox_value = [center[0] + region.axis_major_length, center[1] - region.axis_minor_length]
+            bbox.append(bbox_value)
+            bbox.append([bbox_value[0], first_slice.shape[1]])
+            output[coords[:,0], coords[:,1]] = 1
+
+        # plot the first slice of the seg and the frangi slice
+        # need to transfer the seg to numpy and also detach
+        fig, ax = plt.subplots(1, 3)
+        seg_plot = first_slice.detach().cpu().numpy()
+        ax[0].imshow(seg_plot, cmap='gray')
+        ax[1].imshow(frangi_slice, cmap='gray')
+        ax[2].imshow(output, cmap='gray')
+        # plot the line that connect the four points in bbox
+        # first plot the line that connect the first two points
+        ax[0].plot([bbox[0][1], bbox[1][1]], [bbox[0][0], bbox[1][0]], color='r', linewidth=2)
+        # then plot the line that connect the first and the third point
+        ax[0].plot([bbox[0][1], bbox[2][1]], [bbox[0][0], bbox[2][0]], color='b', linewidth=2)
+        # then plot the line that connect the third and the fourth point
+        ax[0].plot([bbox[2][1], bbox[3][1]], [bbox[2][0], bbox[3][0]], color='g', linewidth=2)
+
+        # detect all pixels that outside the bbox and then plot them
+        # first get the coordinates of all pixels
+        x, y = np.where(seg_plot == 1)
+        # then get the coordinates of all pixels that outside the bbox
+        x_outside = []
+        y_outside = []
+        for i in range(len(x)):
+            if x[i] < min(bbox[0][0], bbox[2][0]) or x[i] > max(bbox[0][0], bbox[2][0]) or y[i] < min(bbox[0][1], bbox[2][1]):
+                x_outside.append(x[i])
+                y_outside.append(y[i])
+        # plot the pixels that outside the bbox
+        ax[2].scatter(y_outside, x_outside, color='r', s=1)
+        plt.savefig('./tmp/seg_firstslice.png')
+
+        # create a (N,2) array to store the coordinates of the outside points from x_outside and y_outside
+        outside_points = np.zeros((len(x_outside), 3))
+        outside_points[:, 0] = 0
+        outside_points[:, 1] = x_outside
+        outside_points[:, 2] = y_outside
+
+        # detect the connected components in seg that connect to the outside_points in the first slice
+        # find the connected components looping through all outside_points
+        seg_copies = []
+        for point in outside_points:
+            # use flood fill to find the connected components of the point
+            # first create a copy of the seg
+            seg_copy = seg.detach().cpu().numpy().squeeze().copy()
+            # then use flood fill to find the connected components
+            seg_copy = flood_fill(seg_copy, (int(point[0]), int(point[1]), int(point[2])), 2)
+            # let the 1 in seg_copy to be 0
+            seg_copy[seg_copy == 1] = 0
+            seg_copies.append(seg_copy)        
+
+        seg_filter = np.sum(seg_copies, axis=0)
+        # return seg if there is no connected components
+        if np.sum(seg_filter) == 0:
+            print('no output')
+            return seg
+        seg_filter[seg_filter > 2] = 2
+
+        seg_filter = seg_filter + seg.detach().cpu().numpy().squeeze()
+        seg_filter[seg_filter == 3] = 2
+
+        # output the seg_copy as nii file
+        seg_filter = np.transpose(seg_filter, (1, 2, 0)).astype(np.uint8)
+        # seg_nii = nib.Nifti1Image(seg_filter, np.eye(4))
+        # nib.save(seg_nii, './tmp/seg_copy.nii.gz')
+
+        # transform seg_filter to tensor to device as same as seg with same shape
+        seg_filter = torch.from_numpy(seg_filter.transpose(2,0,1)).unsqueeze(0).to(seg.device)
+
+
+        return seg_filter

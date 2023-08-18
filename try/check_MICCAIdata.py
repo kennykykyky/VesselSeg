@@ -26,10 +26,10 @@ def rename_nnUnetdata(datapath, name='TOF', label = False):
         print(f'{name_item} -> {name_item_new}')
         
 # rename_nnUnetdata('D:\Kaiyu\nnUNet_dataset\nnUNet_raw\Dataset301_SMRATOF\imagesTr', name='TOF')
-datapath = 'D:/Kaiyu/nnUNet_dataset/nnUNet_raw/Dataset301_SMRATOF/labelsTr'
-rename_nnUnetdata(datapath, name='TOF', label = True)
+# datapath = 'D:/Kaiyu/nnUNet_dataset/nnUNet_raw/Dataset301_SMRATOF/labelsTr'
+# rename_nnUnetdata(datapath, name='TOF', label = True)
 
-pdb.set_trace()
+# pdb.set_trace()
 
 # End of renaming nnUnet data
 
@@ -48,6 +48,8 @@ paths_items_avail = []
 meta_file = pd.read_csv('./data/CAS2023_training/meta.csv')
 
 for path_item in paths_items_all[:]:
+
+    print(path_item)
     
     name_item = os.path.basename(path_item)
     id_item = int(name_item[:-7])
@@ -62,12 +64,14 @@ for path_item in paths_items_all[:]:
     
     img = nib.load(path_img)
     seg = nib.load(path_seg)
-    
+
+    # print the shape of the image
+    print(img.shape, img.shape[1]/img.shape[2])
+
     img_data = img.get_fdata()
     seg_data = seg.get_fdata()
     
     ys, xs, zs = np.asarray(img_data > 0.05).nonzero()
-    pdb.set_trace()
     # pos_s = [img_data.shape[0] - pos_s[0], img_data.shape[0] - pos_s[1], img_data.shape[1] - pos_s[2], img_data.shape[1] - pos_s[3], img_data.shape[2] - pos_s[4], img_data.shape[2] - pos_s[5]]
     
     # Create the maximum intensity projection of the image
@@ -125,7 +129,11 @@ for path_item in paths_items_all[:]:
         
     plt.tight_layout()
     # Save the plot as an image file
-    plt.savefig(os.path.join(save_dir, f'{name_item[:-7]}.png'))
+    if img.shape[1]/img.shape[2] < 3.5:
+        plt.savefig(os.path.join(save_dir, f'{name_item[:-7]}_largeZ.png'))
+    else:
+        plt.savefig(os.path.join(save_dir, f'{name_item[:-7]}.png'))
+    plt.close()
 
     # Show the plot
     # plt.show()

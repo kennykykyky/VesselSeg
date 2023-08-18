@@ -1,6 +1,6 @@
 exp:
-    name: 03_10
-    names_exp_delete: ['tmp', 'test_03_10_2023']
+    name: 03_10_nosens
+    names_exp_delete: ['tmp', 'test_03_10_nodelete']
     idx_device: 0
     customize_dataloader: True
     mode: test
