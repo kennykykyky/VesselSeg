@@ -1,0 +1,50 @@
+exp:
+    name: 03_11_DTCECLACE_largeZ_gpu2
+    names_exp_delete: ['tmp', 'train_03_11_DTCECLACE_largeZ_gpu2']
+    idx_device: 2
+    customize_dataloader: True
+    nnunet_result: 
+        path: /home/kaiyu/project/nnUNet_dataset/nnUNet_results/Dataset301_SMRATOF/nnUNetTrainer__nnUNetPlans__3d_fullres
+        fold: 0
+        model: 3d_fullres
+        weights: ./save/SMRA_nnUnet.pth
+
+    train:
+        path_model_trained: null
+        batch_size: 2
+        select_mods: False
+        n_epochs: 1000
+        optimizer:
+            name: adam
+            lr: 1e-6
+            adam:
+                weight_decay: 1e-5
+    val:
+        skip_initial_val: False
+        batch_size: 1
+        n_epochs_once: 5
+        save_every_model: true
+
+    test:
+        batch_size: 1
+        path_model_trained: null
+
+dataset:
+    name: miccaimonaiweightDataset
+    path: ./data/SMRA_MONAI_npy/MICCAI_CAS_2023_extra_largeZ.json
+    num_cache_train: 15
+    num_cache_val: 4
+    num_cache_test: 4
+    num_samples: 2
+
+model:
+    name: nnunet_model
+    ws_loss:
+        cldiceloss: 0.5
+        focal: 0.0
+        lumen: 1.0
+    w_cl: 1.0
+    w_ce: 0.3
+    w_dice: 0.
+    w_ace: 0.3
+    w_dt: 0.3

@@ -1,0 +1,48 @@
+exp:
+    name: 03_10_largeZ
+    names_exp_delete: ['tmp', 'test_03_10_largeZ']
+    idx_device: 3
+    customize_dataloader: True
+    mode: test
+    nnunet_result: 
+        path: /home/kaiyu/project/nnUNet_dataset/nnUNet_results/Dataset301_SMRATOF/nnUNetTrainer__nnUNetPlans__3d_fullres
+        fold: 0
+        model: 3d_fullres
+        weights: ./save/SMRA_nnUnet.pth
+
+    train:
+        path_model_trained: null
+        batch_size: 2
+        select_mods: False
+        optimizer:
+            name: adam
+            lr: 3e-4
+            adam:
+                weight_decay: 1e-5
+    val:
+        skip_initial_val: True
+        batch_size: 1
+        n_epochs_once: 5
+
+    test:
+        batch_size: 1
+        path_model_trained: /home/kaiyu/project/VesselSeg/save/train_03_11_DTCLACE_largeZ_gpu3_2023-08-18_17-37-52/checkpoints/model_epoch60.pth
+        metrics_all_cases:
+            enable: true
+        save_seg:
+            enable: True
+            
+dataset:
+    name: miccaimonaiweightDataset
+    path: ./data/SMRA_MONAI_npy/MICCAI_CAS_2023_extra_largeZ.json
+    num_cache_train: 15
+    num_cache_val: 4
+    num_cache_test: 4
+    num_samples: 2
+
+model:
+    name: nnunet_model
+    ws_loss:
+        cldiceloss: 1
+        focal: 0
+    w_focal: 0.5

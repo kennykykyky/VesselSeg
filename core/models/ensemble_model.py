@@ -54,7 +54,42 @@ class nnUNet(nn.Module):
         x = self.net(x)
         return x[0]
 
-class nnUNetModel(nn.Module):
+class wrapNet(nn.Module):
+    def __init__(self, net):
+        super().__init__()
+        self.net = net
+    def forward(self, x):
+        x = self.net(x)
+        return x
+
+class EnsembleModel(nn.Module):
+    def __init__(self, base_model, num_models):
+        super(EnsembleModel, self).__init__()
+        self.models = nn.ModuleList([base_model for _ in range(num_models)])
+        
+    def forward(self, x):
+
+        total_logits = torch.zeros([x.shape[0], 2, x.shape[2], x.shape[3], x.shape[4]], device=x.device)  # for 3D segmentation
+        # Accumulate logits from all models
+        for model in self.models:
+            logits = model(x)
+            total_logits += logits
+        # Average logits
+        average_logits = total_logits / len(self.models)
+
+        return average_logits
+
+    def load_model_weights(self, paths, map_location):
+        """
+        Load weights for each model in the ensemble.
+        
+        paths: List of paths to the saved model weights.
+        """
+        for model, path in zip(self.models, paths):
+            weights = torch.load(path, map_location=map_location)
+            model.load_state_dict(weights, strict = False)
+
+class ensembleModel(nn.Module):
 
     def __init__(self, cfg):
         super().__init__()
@@ -68,7 +103,7 @@ class nnUNetModel(nn.Module):
                 self.plans = json.load(f)
 
         # load pretrained nnUNet model
-        self.net = get_network_from_plans(plans_manager, 
+        net = get_network_from_plans(plans_manager, 
                                           dataset_json, 
                                           plans_manager.get_configuration(cfg.exp.nnunet_result.model), 
                                           num_input_channels=1)
@@ -76,12 +111,11 @@ class nnUNetModel(nn.Module):
         # load pretrained weights
         id_device = self.cfg.exp.idx_device
         map_location = {'cuda:0': f'cuda:{id_device}'}
-        saved_model = torch.load(cfg.exp.nnunet_result.weights, map_location=map_location)
-        pretrained_dict = saved_model['network_weights']
-        self.net.load_state_dict(pretrained_dict, strict=True)
-        # Since the output of nnUNet include results from all decoder layers, we only need the last one
-        # Therefore we wrap the nnUNet model with a new model to extract the last decoder layer output
-        self.net = nnUNet(self.net)
+        self.net = nnUNet(net)
+        self.net = wrapNet(self.net)
+
+        self.ensemble = EnsembleModel(self.net, num_models=len(cfg.exp.ensemble_models))
+        self.ensemble.load_model_weights(cfg.exp.ensemble_models, map_location=map_location)
 
         self.cfg.var.obj_model = self
         self.paths_file_net = []
@@ -139,7 +173,7 @@ class nnUNetModel(nn.Module):
             with torch.no_grad():
                 with torch.cuda.amp.autocast():
                     # sliding window inference is used to get better inference results (from MONAI)
-                    self.output['logits'] = sliding_window_inference(self.imgs, roi_size=self.plans['configurations'][self.cfg.exp.nnunet_result.model]['patch_size'], sw_batch_size=4, predictor=self.net)
+                    self.output['logits'] = sliding_window_inference(self.imgs, roi_size=self.plans['configurations'][self.cfg.exp.nnunet_result.model]['patch_size'], sw_batch_size=4, predictor=self.ensemble)
                     if 'meta' in data.keys():
                         self.output['spacing'] = data['meta']['spacing'].detach().cpu().numpy().reshape(3,-1).squeeze()
                         self.output['s_bbox'] = data['meta']['s_bbox'].detach().cpu().numpy().astype(np.int32)
@@ -147,7 +181,7 @@ class nnUNetModel(nn.Module):
                     self.output['image_meta_dict'] = data['image_meta_dict']
         else:
             with torch.cuda.amp.autocast():
-                self.output['logits'] = self.net(self.imgs)
+                self.output['logits'] = self.ensemble(self.imgs)
 
         # for binary segmentation, the binary function can generate a better segmentation sensitivity
         # self.output['mask'] = (self.binary(torch.sigmoid(self.output['logits'][:,1])) > self.threshold).float() # single channel mask
@@ -194,50 +228,7 @@ class nnUNetModel(nn.Module):
                 else:
                     self.metrics_epoch[k] = v / len(getattr(self.cfg.var.obj_operator, f'{mode}_set'))
                 
-            self.metrics_epoch['metric_final'] = 0
-            # self.metrics_epoch['metric_final'] = self.metrics_epoch['final_score']
-
-        # if self.cfg.exp.mode == 'test':
-        #     if self.cfg.exp.test.classification_curve.enable:
-        #         seg_gt_roc = np.concatenate(self.gt_roc)
-        #         seg_pred_roc = np.concatenate(self.pred_roc)
-        #         fpr, tpr, thres = metrics.roc_curve(y_true=seg_gt_roc.reshape(-1), y_score=seg_pred_roc.reshape(-1))
-        #         df = pd.DataFrame({'fp_rate': fpr, 'tp_rate': tpr, 'threshold': thres})
-        #         df.to_csv(os.path.join(self.cfg.var.obj_operator.path_exp, 'roc_curve_pointwise.csv'), index=False)
-        #         precision, recall, thres = metrics.precision_recall_curve(y_true=seg_gt_roc.reshape(-1),
-        #                                                                   probas_pred=seg_pred_roc.reshape(-1))
-        #         df = pd.DataFrame({
-        #             'precision': precision,
-        #             'recall': recall,
-        #             'threshold': np.concatenate([thres, [99999]])
-        #         })
-        #         df.to_csv(os.path.join(self.cfg.var.obj_operator.path_exp, 'precision_recall_curve_pointwise.csv'),
-        #                   index=False)
-
-        #         class_gt = np.max(np.max(seg_gt_roc, axis=2), axis=2)[:, 0] # [B]
-        #         class_pred = np.max(np.max(seg_pred_roc, axis=2), axis=2)[:, 0] # [B]
-        #         fpr, tpr, thres = metrics.roc_curve(y_true=class_gt, y_score=class_pred)
-        #         df = pd.DataFrame({'fp_rate': fpr, 'tp_rate': tpr, 'threshold': thres})
-        #         df.to_csv(os.path.join(self.cfg.var.obj_operator.path_exp, 'roc_curve_slicewise.csv'), index=False)
-        #         precision, recall, thres = metrics.precision_recall_curve(y_true=class_gt, probas_pred=class_pred)
-        #         df = pd.DataFrame({
-        #             'precision': precision,
-        #             'recall': recall,
-        #             'threshold': np.concatenate([thres, [99999]])
-        #         })
-        #         df.to_csv(os.path.join(self.cfg.var.obj_operator.path_exp, 'precision_recall_curve_slicewise.csv'),
-        #                   index=False)
-
-        #         dices = []
-        #         thresholds = np.linspace(np.min(seg_pred_roc), np.max(seg_pred_roc), 80)
-        #         for thre in thresholds:
-        #             seg_pred_roc_thres = (seg_pred_roc > thre).astype(int)
-        #             numerator = 2 * np.sum(seg_gt_roc * seg_pred_roc_thres, axis=tuple(range(len(seg_gt_roc.shape))))
-        #             denominator = np.sum(seg_gt_roc + seg_pred_roc_thres, axis=tuple(range(len(seg_gt_roc.shape))))
-        #             dice = (numerator + 1e-8) / (denominator + 1e-8)
-        #             dices.append(dice)
-        #         df = pd.DataFrame({'dice': dices, 'threshold': thresholds})
-        #         df.to_csv(os.path.join(self.cfg.var.obj_operator.path_exp, 'thres_dice_curve.csv'), index=False)
+            self.metrics_epoch['metric_final'] = self.metrics_epoch['dice']
 
     def get_metrics(self, data, output, mode='train'):
         """
@@ -288,7 +279,7 @@ class nnUNetModel(nn.Module):
             # filter the vessels around outside ICA at the first several z-slices
             if self.imgs.shape[-1]/self.imgs.shape[-3] < 3.5:
                 case_id = self.output['image_meta_dict']['filename_or_obj'][0].split('/')[-1].split('.')[0]
-                if case_id not in ['013', '020', '029', '031']:
+                if case_id not in ['013', '020', '029', '30']:
                     self.output['mask'] = self.filter_vessel(self.output['mask']).to(torch.int64)
 
             if self.cfg.exp.test.classification_curve.enable:
@@ -340,17 +331,15 @@ class nnUNetModel(nn.Module):
                 seg = nib.Nifti1Image(seg, np.eye(4))
                 # save the seg file with the same name as in the image_meta_dict
                 nib.save(seg, os.path.join(self.cfg.var.obj_operator.path_exp, self.output['image_meta_dict']['filename_or_obj'][0].split('/')[-1].split('.')[0] + '.nii.gz'))
-            
+                
             # save the metrics in text file
             with open(os.path.join(self.cfg.var.obj_operator.path_exp, 'metrics.txt'), 'a') as f:
                 f.write(self.output['image_meta_dict']['filename_or_obj'][0].split('/')[-1].split('.')[0] + '\n')
-                f.write(str(self.metrics_iter) + '\n')                
-            
-            # print the case name
-            print(self.output['image_meta_dict']['filename_or_obj'][0].split('/')[-1].split('.')[0])
+                f.write(str(self.metrics_iter) + '\n')
+
             # print the items in the self.metrics_iter
-            for k, v in self.metrics_iter.items():
-                print(k, v)
+            # for k, v in self.metrics_iter.items():
+                # print(k, v)
 
         return self.metrics_iter
 
@@ -537,8 +526,7 @@ class nnUNetModel(nn.Module):
         seg_filter[seg_filter > 2] = 2
 
         seg_filter = seg_filter + seg.detach().cpu().numpy().squeeze()
-        # 2 for comparison and 0 for final output
-        seg_filter[seg_filter == 3] = 0
+        seg_filter[seg_filter == 3] = 2
 
         # output the seg_copy as nii file
         seg_filter = np.transpose(seg_filter, (1, 2, 0)).astype(np.uint8)

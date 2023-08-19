@@ -1,0 +1,55 @@
+exp:
+    name: 03_13_ensemble_gpu0
+    names_exp_delete: ['tmp', 'test_03_13_ensemble_gpu0']
+    idx_device: 0
+    customize_dataloader: True
+    mode: test
+    nnunet_result: 
+        path: /home/kaiyu/project/nnUNet_dataset/nnUNet_results/Dataset301_SMRATOF/nnUNetTrainer__nnUNetPlans__3d_fullres
+        fold: 0
+        model: 3d_fullres
+        weights: ./save/SMRA_nnUnet.pth
+    ensemble_models: ['/home/kaiyu/project/VesselSeg/save/train_03_11_DTCLACE_gpu1_2023-08-17_18-50-31/checkpoints/model_epoch25.pth', '/home/kaiyu/project/VesselSeg/save/train_03_11_DTCECLACE_gpu2_2023-08-17_18-50-31/checkpoints/model_epoch115.pth']
+
+    train:
+        path_model_trained: null
+        batch_size: 2
+        select_mods: False
+        n_epochs: 200
+        optimizer:
+            name: adam
+            lr: 1e-6
+            adam:
+                weight_decay: 1e-5
+    val:
+        skip_initial_val: False
+        batch_size: 1
+        n_epochs_once: 5
+
+    test:
+        batch_size: 1
+        path_model_trained: /home/kaiyu/project/VesselSeg/save/train_03_13_ensemble_gpu0_2023-08-19_14-23-31/checkpoints/model_best.pth
+        metrics_all_cases:
+            enable: true
+        save_seg:
+            enable: True
+
+dataset:
+    name: miccaimonaiweightDataset
+    path: ./data/SMRA_MONAI_npy/MICCAI_CAS_2023_extra.json
+    num_cache_train: 1
+    num_cache_val: 20
+    num_cache_test: 10
+    num_samples: 2
+
+model:
+    name: ensemble_model
+    ws_loss:
+        cldiceloss: 0.5
+        focal: 0.0
+        lumen: 1.0
+    w_cl: 1.0
+    w_ce: 0.
+    w_dice: 0.
+    w_ace: 0.5
+    w_dt: 0.5
