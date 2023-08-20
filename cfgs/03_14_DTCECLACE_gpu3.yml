@@ -1,13 +1,13 @@
 exp:
-    name: 03_11_DTCLACE_gpu1
-    names_exp_delete: ['tmp', 'train_03_11_DTCLACE_gpu1']
-    idx_device: 1
+    name: 03_14_DTCECLACE_gpu3
+    names_exp_delete: ['tmp', 'train_03_14_DTCECLACE_gpu3']
+    idx_device: 3
     customize_dataloader: True
     nnunet_result: 
-        path: /home/kaiyu/project/nnUNet_dataset/nnUNet_results/Dataset301_SMRATOF/nnUNetTrainer__nnUNetPlans__3d_fullres
+        path: /home/kaiyu/project/nnUNet_dataset/nnUNet_results/Dataset305_SMRAResample/nnUNetTrainer__nnUNetPlans__3d_fullres
         fold: 0
         model: 3d_fullres
-        weights: ./save/SMRA_nnUnet.pth
+        weights: 
 
     train:
         path_model_trained: null
@@ -16,14 +16,13 @@ exp:
         n_epochs: 200
         optimizer:
             name: adam
-            lr: 3e-6
+            lr: 1e-6
             adam:
                 weight_decay: 1e-5
     val:
         skip_initial_val: False
         batch_size: 1
         n_epochs_once: 5
-        save_every_model: true
 
     test:
         batch_size: 1
@@ -44,7 +43,7 @@ model:
         focal: 0.0
         lumen: 1.0
     w_cl: 1.0
-    w_ce: 0.
+    w_ce: 0.3
     w_dice: 0.
-    w_ace: 0.5
-    w_dt: 0.5
+    w_ace: 0.3
+    w_dt: 0.3

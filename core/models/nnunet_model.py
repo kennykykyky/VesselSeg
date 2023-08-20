@@ -8,6 +8,7 @@ from core.losses.LumenLoss import LumenLoss, Binary
 from core.utils.clDiceMetric import clDice
 from core.utils.bettiMetric import betti_error_metric
 from core.utils.ahdMetric import ahd_metric
+from core.utils.ahdgpuMetric import ahdgpu_metric
 from nnunetv2.utilities.get_network_from_plans import get_network_from_plans
 from nnunetv2.utilities.plans_handling.plans_handler import ConfigurationManager, PlansManager
 
@@ -18,7 +19,9 @@ from monai.inferers import sliding_window_inference
 from monai.metrics import DiceMetric, compute_hausdorff_distance
 from monai.transforms import AsDiscrete
 from monai.losses import DiceLoss, FocalLoss
+from monai.metrics import compute_hausdorff_distance, compute_percent_hausdorff_distance, HausdorffDistanceMetric, compute_average_surface_distance
 
+import time
 import torch
 import pdb
 import cv2
@@ -113,6 +116,7 @@ class nnUNetModel(nn.Module):
     def forward(self, data):
         # should consider whether use single channel or one-hot for segmentation as the input for loss function
         # We will first transform labels into one-hot format, but select only second channel for binary segmentation to get more stable numerical results
+
         if 'label' in data.keys():
             imgs, segs = data['image'], data['label'].long()
             # for monai dataset, we usually don't use GPU to accelerate data loading and therefore we will move data to GPU here
@@ -184,7 +188,6 @@ class nnUNetModel(nn.Module):
                 self.pred_roc = []
 
     def after_epoch(self, mode='train'):
-        self.metrics_epoch['metric_final'] = 0
 
         if isinstance(self.output['gt'], torch.Tensor):
 
@@ -194,8 +197,8 @@ class nnUNetModel(nn.Module):
                 else:
                     self.metrics_epoch[k] = v / len(getattr(self.cfg.var.obj_operator, f'{mode}_set'))
                 
-            self.metrics_epoch['metric_final'] = 0
-            # self.metrics_epoch['metric_final'] = self.metrics_epoch['final_score']
+            if not self.training:
+                self.metrics_epoch['metric_final'] = self.metrics_epoch['final_score']
 
         # if self.cfg.exp.mode == 'test':
         #     if self.cfg.exp.test.classification_curve.enable:
@@ -263,11 +266,18 @@ class nnUNetModel(nn.Module):
                     self.metrics_iter['clDice'] = clDice(self.output['mask'].detach().cpu().numpy().squeeze().astype(np.uint8), seg_gt.detach().cpu().numpy().squeeze().astype(np.uint8))
 
                     if mode in ['val', 'test']:
-                        self.metrics_iter['ahd'], self.metrics_iter['ahd_s'] = ahd_metric(self.output['mask'].detach().cpu().numpy().squeeze(),
-                                                            self.imgs.detach().cpu().numpy().squeeze(),
-                                                            self.output['gt'][:,1].detach().cpu().numpy().squeeze(),
-                                                            self.output['spacing'],
-                                                            self.output['s_bbox'])
+
+                        # print time
+
+                        # self.metrics_iter['ahd'] = compute_average_surface_distance(self.output['mask_onehot'], self.output['gt'], include_background=False, symmetric=True, spacing = self.output['spacing']).item()
+                        self.metrics_iter['ahd'], self.metrics_iter['ahd_s'] = ahdgpu_metric(self.output['mask_onehot'], self.imgs, self.output['gt'], self.output['spacing'], self.output['s_bbox'])
+
+                        # self.metrics_iter['ahd'], self.metrics_iter['ahd_s'] = ahd_metric(self.output['mask'].detach().cpu().numpy().squeeze(),
+                        #                                     self.imgs.detach().cpu().numpy().squeeze(),
+                        #                                     self.output['gt'][:,1].detach().cpu().numpy().squeeze(),
+                        #                                     self.output['spacing'],
+                        #                                     self.output['s_bbox'])
+
                         pos_s = self.output['s_bbox']
                         if pos_s.shape[0] == 6:
                             self.metrics_iter['dice_s'] = self.dice(seg_gt[:, pos_s[0]:pos_s[1], pos_s[2]:pos_s[3], pos_s[4]:pos_s[5]], 
@@ -278,8 +288,7 @@ class nnUNetModel(nn.Module):
                         else:
                             self.metrics_iter['dice_s'] = 0
                             self.metrics_iter['final_score'] = 0.5 * self.metrics_iter['dice'] + 0.5 * self.metrics_iter['ahd']
-                            
-
+                        
             for k, v in self.metrics_iter.items():
                 self.metrics_epoch[k] = self.metrics_epoch.get(k, 0.) + float(v) * self.imgs.shape[0]
 
@@ -323,9 +332,9 @@ class nnUNetModel(nn.Module):
 
                     # Assign unique intensity values for visualization
                     difference_data = np.zeros_like(self.output['gt'][0, 1].detach().cpu().numpy().squeeze())
-                    difference_data[FP] = 1  # False Positives marked as 1
-                    difference_data[FN] = 2  # False Negatives marked as 2
-                    difference_data[TP] = 3  # True Positives marked as 3
+                    difference_data[FP] = 1  # False Positives marked as 1, red
+                    difference_data[FN] = 2  # False Negatives marked as 2, green
+                    difference_data[TP] = 3  # True Positives marked as 3, blue
                     # Note: True Negatives will have a value of 0
                     difference_data = np.transpose(difference_data, (1, 2, 0))
 

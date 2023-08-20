@@ -6,6 +6,7 @@ from core.losses.focal import BinaryFocalLossWithLogits
 from core.losses.cldiceLoss import soft_cldice, soft_dice_cldice, soft_dice
 from core.losses.LumenLoss import LumenLoss, Binary
 from core.utils.clDiceMetric import clDice
+from core.utils.ahdgpuMetric import ahdgpu_metric
 from core.utils.bettiMetric import betti_error_metric
 from core.utils.ahdMetric import ahd_metric
 from nnunetv2.utilities.get_network_from_plans import get_network_from_plans
@@ -18,6 +19,7 @@ from monai.inferers import sliding_window_inference
 from monai.metrics import DiceMetric, compute_hausdorff_distance
 from monai.transforms import AsDiscrete
 from monai.losses import DiceLoss, FocalLoss
+from monai.metrics import compute_hausdorff_distance, compute_percent_hausdorff_distance, HausdorffDistanceMetric, compute_average_surface_distance
 
 import torch
 import pdb
@@ -43,6 +45,8 @@ import nibabel as nib
 from scipy.ndimage import label, binary_fill_holes, find_objects
 from skimage.measure import regionprops
 from skimage.segmentation import flood_fill
+from scipy.ndimage import label, center_of_mass
+from scipy.spatial import distance
 
 mpl.use('agg')
 
@@ -218,7 +222,6 @@ class ensembleModel(nn.Module):
                 self.pred_roc = []
 
     def after_epoch(self, mode='train'):
-        self.metrics_epoch['metric_final'] = 0
 
         if isinstance(self.output['gt'], torch.Tensor):
 
@@ -228,7 +231,8 @@ class ensembleModel(nn.Module):
                 else:
                     self.metrics_epoch[k] = v / len(getattr(self.cfg.var.obj_operator, f'{mode}_set'))
                 
-            self.metrics_epoch['metric_final'] = self.metrics_epoch['dice']
+            if not self.training:
+                self.metrics_epoch['metric_final'] = self.metrics_epoch['final_score']
 
     def get_metrics(self, data, output, mode='train'):
         """
@@ -254,11 +258,18 @@ class ensembleModel(nn.Module):
                     self.metrics_iter['clDice'] = clDice(self.output['mask'].detach().cpu().numpy().squeeze().astype(np.uint8), seg_gt.detach().cpu().numpy().squeeze().astype(np.uint8))
 
                     if mode in ['val', 'test']:
-                        self.metrics_iter['ahd'], self.metrics_iter['ahd_s'] = ahd_metric(self.output['mask'].detach().cpu().numpy().squeeze(),
-                                                            self.imgs.detach().cpu().numpy().squeeze(),
-                                                            self.output['gt'][:,1].detach().cpu().numpy().squeeze(),
-                                                            self.output['spacing'],
-                                                            self.output['s_bbox'])
+
+                        # print time
+
+                        # self.metrics_iter['ahd'] = compute_average_surface_distance(self.output['mask_onehot'], self.output['gt'], include_background=False, symmetric=True, spacing = self.output['spacing']).item()
+                        self.metrics_iter['ahd'], self.metrics_iter['ahd_s'] = ahdgpu_metric(self.output['mask_onehot'], self.imgs, self.output['gt'], self.output['spacing'], self.output['s_bbox'])
+
+                        # self.metrics_iter['ahd'], self.metrics_iter['ahd_s'] = ahd_metric(self.output['mask'].detach().cpu().numpy().squeeze(),
+                        #                                     self.imgs.detach().cpu().numpy().squeeze(),
+                        #                                     self.output['gt'][:,1].detach().cpu().numpy().squeeze(),
+                        #                                     self.output['spacing'],
+                        #                                     self.output['s_bbox'])
+
                         pos_s = self.output['s_bbox']
                         if pos_s.shape[0] == 6:
                             self.metrics_iter['dice_s'] = self.dice(seg_gt[:, pos_s[0]:pos_s[1], pos_s[2]:pos_s[3], pos_s[4]:pos_s[5]], 
@@ -269,7 +280,6 @@ class ensembleModel(nn.Module):
                         else:
                             self.metrics_iter['dice_s'] = 0
                             self.metrics_iter['final_score'] = 0.5 * self.metrics_iter['dice'] + 0.5 * self.metrics_iter['ahd']
-                            
 
             for k, v in self.metrics_iter.items():
                 self.metrics_epoch[k] = self.metrics_epoch.get(k, 0.) + float(v) * self.imgs.shape[0]
@@ -281,6 +291,11 @@ class ensembleModel(nn.Module):
                 case_id = self.output['image_meta_dict']['filename_or_obj'][0].split('/')[-1].split('.')[0]
                 if case_id not in ['013', '020', '029', '30']:
                     self.output['mask'] = self.filter_vessel(self.output['mask']).to(torch.int64)
+
+            # filter the small spotty segmentation
+            filter_spotty = True
+            if filter_spotty:
+                self.output['mask'] = self.filter_isolated_regions(self.output['mask']).to(torch.int64)
 
             if self.cfg.exp.test.classification_curve.enable:
                 self.gt_roc.append(seg_gt.cpu().numpy())
@@ -538,3 +553,54 @@ class ensembleModel(nn.Module):
 
 
         return seg_filter
+
+    def filter_isolated_regions(self, seg):
+        """
+        Remove small regions that are isolated in a 3D segmentation.
+
+        Parameters:
+        - segmentation: 3D numpy array
+        - volume_threshold: Minimum volume to keep a region
+        - distance_threshold: Minimum distance to the main region to keep a region
+        """
+
+        segmentation = seg.detach().cpu().numpy().squeeze()
+
+        # Step 1: Label each connected component
+        labeled, num_features = label(segmentation)
+
+        # Step 2: Calculate volumes
+        volumes = [np.sum(labeled == i) for i in range(1, num_features + 1)]
+
+        # volume_threshold = np.percentile(volumes, 10)
+        volume_threshold = 20
+        
+        # Step 3: Calculate centroids
+        centroids = center_of_mass(segmentation, labeled, index=range(1, num_features + 1))
+
+        # If there's only one component, return the original segmentation
+        if num_features == 1:
+            return segmentation
+        
+        # Find the largest volume
+        largest_volume_index = np.argmax(volumes)
+        largest_volume_centroid = centroids[largest_volume_index]
+
+        distance_to_center = np.linalg.norm(np.array(segmentation.shape) / 2)
+        distance_threshold = 0.8 * distance_to_center
+
+        # calculate the center of the 3d space
+        center = np.array(segmentation.squeeze().shape) / 2
+
+        # Step 4 & 5: Filtering based on volume and distance
+        for i, (vol, cent) in enumerate(zip(volumes, centroids)):
+            dist = distance.euclidean(cent, center)
+            if vol < volume_threshold or dist > distance_threshold:
+                # document which vol has been deleted
+                # print('volume {} has been deleted'.format(vol))
+                segmentation[labeled == i+1] = 0
+
+        segmentation = torch.from_numpy(segmentation).unsqueeze(0).to(seg.device)
+
+        return segmentation
+    

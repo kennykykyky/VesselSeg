@@ -1,4 +1,3 @@
-from medpy.metric.binary import assd
 import numpy as np
 import pdb
 import os
@@ -7,23 +6,20 @@ import matplotlib.patches as patches
 
 from monai.metrics import compute_hausdorff_distance, compute_percent_hausdorff_distance, HausdorffDistanceMetric, compute_average_surface_distance
 
-def ahd_metric(pred_mask, img, gt, spacing, pos_s):
+def ahdgpu_metric(pred_mask, img, gt, spacing, pos_s):
 
-    ahd = assd(pred_mask, gt, voxelspacing=spacing)
-
-    # compute_hausdorff_distance(pred_mask[None,None,...], gt[None,None,...], include_background=False, distance_metric='euclidean', percentile=None, directed=False, spacing=None)
-    # compute_average_surface_distance(pred_mask[None,None,...], gt[None,None,...], include_background=False, symmetric=True, spacing = spacing)
+    ahd = compute_average_surface_distance(pred_mask, gt, include_background=False, symmetric=True, spacing = spacing).item()
 
     nf, nf_s = _compute_norm_factor(img, gt, spacing, pos_s)
 
     ahd_score = max((nf - ahd) / nf, 0)
 
     if pos_s.shape[0] == 6:
-        mask_s = gt[pos_s[0]:pos_s[1], pos_s[2]:pos_s[3], pos_s[4]:pos_s[5]]
-        pred_img_s = pred_mask[pos_s[0]:pos_s[1], pos_s[2]:pos_s[3], pos_s[4]:pos_s[5]]
+        mask_s = gt[..., pos_s[0]:pos_s[1], pos_s[2]:pos_s[3], pos_s[4]:pos_s[5]]
+        pred_img_s = pred_mask[..., pos_s[0]:pos_s[1], pos_s[2]:pos_s[3], pos_s[4]:pos_s[5]]
         
         if pred_img_s.sum() > 0:
-            ahd_s = assd(pred_img_s, mask_s, voxelspacing=spacing)
+            ahd_s = compute_average_surface_distance(pred_img_s, mask_s, include_background=False, symmetric=True, spacing = spacing).item()
         else:
             ahd_s = nf_s
         
@@ -51,11 +47,11 @@ def _compute_norm_factor(img, mask, spacing, pos_s):
         #     ahd.append(assd(pred_img, mask, voxelspacing=spacing))
         # else:
         #     pdb.set_trace()
-        ahd.append(assd(pred_img, mask, voxelspacing=spacing))
+        ahd.append(compute_average_surface_distance(pred_img, mask, include_background=False, symmetric=True, spacing = spacing).item())
 
     # determine if pos_s is a shape [6,1] array or length 1 array
     if pos_s.shape[0] == 6:
-        mask_s = mask[pos_s[0]:pos_s[1], pos_s[2]:pos_s[3], pos_s[4]:pos_s[5]]
+        mask_s = mask[..., pos_s[0]:pos_s[1], pos_s[2]:pos_s[3], pos_s[4]:pos_s[5]]
 
         # # plot 2d image of mask[59] as img with the 2d bounding box from img [pos_s[2]:pos_s[3], pos_s[4]:pos_s[5]]
         # mip_x = np.max(img, axis=0)
@@ -76,14 +72,14 @@ def _compute_norm_factor(img, mask, spacing, pos_s):
         # axs[1,1].add_patch(rect2)
         # plt.savefig('/home/kaiyu/project/VesselSeg/tmp/test_stenosis.png')
 
-        pred_img_s = pred_img[pos_s[0]:pos_s[1], pos_s[2]:pos_s[3], pos_s[4]:pos_s[5]]
+        pred_img_s = pred_img[..., pos_s[0]:pos_s[1], pos_s[2]:pos_s[3], pos_s[4]:pos_s[5]]
         if pred_img_s.max() == False:
-            pred_img_s[int(pred_img_s.shape[0]/2), int(pred_img_s.shape[1]/2), int(pred_img_s.shape[2]/2)] = 1
+            pred_img_s[..., int(pred_img_s.shape[0]/2), int(pred_img_s.shape[1]/2), int(pred_img_s.shape[2]/2)] = 1
         # if np.any(pred_img_s) and np.any(mask_s):   # check if pred_img and mask contain any binary object
         #     ahd_s.append(assd(pred_img_s, mask_s, voxelspacing=spacing))
         # else:
         #     ahd_s.append(ahd_s.mean())
-        ahd_s.append(assd(pred_img_s, mask_s, voxelspacing=spacing))
+        ahd_s.append(compute_average_surface_distance(pred_img_s, mask_s, include_background=False, symmetric=True, spacing = spacing).item())
     else:
         ahd_s.append(-1)
 

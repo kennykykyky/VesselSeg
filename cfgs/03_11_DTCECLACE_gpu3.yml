@@ -1,7 +1,7 @@
 exp:
-    name: 03_11_DTCECLACE_gpu2
-    names_exp_delete: ['tmp', 'train_03_11_DTCECLACE_gpu2']
-    idx_device: 2
+    name: 03_11_DTCECLACE_gpu3
+    names_exp_delete: ['tmp', 'train_03_11_DTCECLACE_gpu3']
+    idx_device: 3
     customize_dataloader: True
     nnunet_result: 
         path: /home/kaiyu/project/nnUNet_dataset/nnUNet_results/Dataset301_SMRATOF/nnUNetTrainer__nnUNetPlans__3d_fullres
@@ -23,6 +23,7 @@ exp:
         skip_initial_val: False
         batch_size: 1
         n_epochs_once: 5
+        save_every_model: true
 
     test:
         batch_size: 1

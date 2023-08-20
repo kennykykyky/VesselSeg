@@ -208,10 +208,11 @@ class miccaimonaiweightDataset:
                             data=datalist,
                             transform=cls.transform,
                             cache_num = cfg.dataset.num_cache_train,
+                            num_init_workers=8,
                         )
 
 
-            dataloader = ThreadDataLoader(dataset, num_workers=0, batch_size=cfg.exp.train.batch_size, shuffle=True)
+            dataloader = ThreadDataLoader(dataset, num_workers=8, batch_size=cfg.exp.train.batch_size, shuffle=True)
             
         # If load numpy file, you should use orientation SRA
         # If load nii file, you should use orientation ILP
@@ -239,8 +240,8 @@ class miccaimonaiweightDataset:
                 )
             val_files = load_decathlon_datalist(datapath, True, "validation")
 
-            dataset = SmartCacheDataset(data=val_files, transform=cls.transform, cache_num = cfg.dataset.num_cache_val)
-            dataloader = ThreadDataLoader(dataset, num_workers=0, batch_size=cfg.exp[mode].batch_size)
+            dataset = SmartCacheDataset(data=val_files, transform=cls.transform, cache_num = cfg.dataset.num_cache_val, num_init_workers=8)
+            dataloader = ThreadDataLoader(dataset, num_workers=8, batch_size=cfg.exp[mode].batch_size)
 
         elif mode == 'test':
             cls.transform = Compose(
@@ -258,7 +259,7 @@ class miccaimonaiweightDataset:
                     ]
                 )
             test_files = load_decathlon_datalist(datapath, True, "test")
-            dataset = SmartCacheDataset(data=test_files, transform=cls.transform, cache_num = cfg.dataset.num_cache_test, shuffle=False)
-            dataloader = ThreadDataLoader(dataset, num_workers=0, batch_size=cfg.exp[mode].batch_size)
+            dataset = SmartCacheDataset(data=test_files, transform=cls.transform, cache_num = cfg.dataset.num_cache_test, shuffle=False, num_init_workers=8)
+            dataloader = ThreadDataLoader(dataset, num_workers=8, batch_size=cfg.exp[mode].batch_size)
         
         return dataset, dataloader

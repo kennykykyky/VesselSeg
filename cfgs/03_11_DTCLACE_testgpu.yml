@@ -1,7 +1,7 @@
 exp:
-    name: 03_11_DTCLACE_gpu1
-    names_exp_delete: ['tmp', 'train_03_11_DTCLACE_gpu1']
-    idx_device: 1
+    name: 03_11_DTCLACE_testgpu
+    names_exp_delete: ['tmp', 'train_03_11_DTCLACE_testgpu']
+    idx_device: 0
     customize_dataloader: True
     nnunet_result: 
         path: /home/kaiyu/project/nnUNet_dataset/nnUNet_results/Dataset301_SMRATOF/nnUNetTrainer__nnUNetPlans__3d_fullres
@@ -11,7 +11,7 @@ exp:
 
     train:
         path_model_trained: null
-        batch_size: 2
+        batch_size: 1
         select_mods: False
         n_epochs: 200
         optimizer:
@@ -20,10 +20,9 @@ exp:
             adam:
                 weight_decay: 1e-5
     val:
-        skip_initial_val: False
+        skip_initial_val: True
         batch_size: 1
-        n_epochs_once: 5
-        save_every_model: true
+        n_epochs_once: 1
 
     test:
         batch_size: 1
@@ -32,10 +31,10 @@ exp:
 dataset:
     name: miccaimonaiweightDataset
     path: ./data/SMRA_MONAI_npy/MICCAI_CAS_2023_extra.json
-    num_cache_train: 70
-    num_cache_val: 20
-    num_cache_test: 10
-    num_samples: 2
+    num_cache_train: 7
+    num_cache_val: 4
+    num_cache_test: 4
+    num_samples: 1
 
 model:
     name: nnunet_model

@@ -9,7 +9,7 @@ exp:
         fold: 0
         model: 3d_fullres
         weights: ./save/SMRA_nnUnet.pth
-    ensemble_models: ['/home/kaiyu/project/VesselSeg/save/train_03_11_DTCLACE_gpu1_2023-08-17_18-50-31/checkpoints/model_epoch25.pth', '/home/kaiyu/project/VesselSeg/save/train_03_11_DTCECLACE_gpu2_2023-08-17_18-50-31/checkpoints/model_epoch115.pth']
+    ensemble_models: ['/home/kaiyu/project/VesselSeg/save/train_03_11_DTCECLACE_gpu3_2023-08-19_16-37-11/checkpoints/model_epoch55.pth', '/home/kaiyu/project/VesselSeg/save/train_03_11_DTCLACE_gpu1_2023-08-19_16-36-27/checkpoints/model_epoch55.pth']
 
     train:
         path_model_trained: null

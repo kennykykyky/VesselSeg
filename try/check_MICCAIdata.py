@@ -25,11 +25,11 @@ def rename_nnUnetdata(datapath, name='TOF', label = False):
         os.rename(path_item, os.path.join(os.path.dirname(path_item), name_item_new))
         print(f'{name_item} -> {name_item_new}')
         
-# rename_nnUnetdata('D:\Kaiyu\nnUNet_dataset\nnUNet_raw\Dataset301_SMRATOF\imagesTr', name='TOF')
+# rename_nnUnetdata('D:/Kaiyu/nnUNet_dataset/nnUNet_raw/Dataset301_SMRATOF/imagesTr', name='TOF')
 # datapath = 'D:/Kaiyu/nnUNet_dataset/nnUNet_raw/Dataset301_SMRATOF/labelsTr'
 # rename_nnUnetdata(datapath, name='TOF', label = True)
 
-# pdb.set_trace()
+pdb.set_trace()
 
 # End of renaming nnUnet data
 
