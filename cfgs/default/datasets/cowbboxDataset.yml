@@ -1,0 +1,7 @@
+dataset:
+    name: cowbboxDataset
+    path: ./data/MICCAI_CAS_2023.json
+    patch_size: [240, 240, 100]
+    gt_box_mode: xyzwhd
+    num_samples: 1
+    batch_size: 1

@@ -1,7 +1,7 @@
 exp:
-    name: 03_14_DTCECLACE_gpu3
-    names_exp_delete: ['tmp', 'train_03_14_DTCECLACE_gpu3']
-    idx_device: 3
+    name: 03_14_DTCLACE_gpu2
+    names_exp_delete: ['tmp', 'train_03_14_DTCLACE_gpu2']
+    idx_device: 2
     customize_dataloader: True
     nnunet_result: 
         path: /home/kaiyu/project/nnUNet_dataset/nnUNet_results/Dataset305_SMRAResample/nnUNetTrainer_250epochs__nnUNetPlans__3d_fullres
@@ -32,8 +32,8 @@ dataset:
     name: smraresampDataset
     path: ./data/SMRA_MONAI_npy_resample/MICCAI_CAS_2023_extra.json
     num_cache_train: 70
-    num_cache_val: 10
-    num_cache_test: 1
+    num_cache_val: 20
+    num_cache_test: 10
     num_samples: 2
 
 model:
@@ -43,7 +43,7 @@ model:
         focal: 0.0
         lumen: 1.0
     w_cl: 1.0
-    w_ce: 0.3
+    w_ce: 0.
     w_dice: 0.
-    w_ace: 0.3
-    w_dt: 0.3
+    w_ace: 0.5
+    w_dt: 0.5

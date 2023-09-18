@@ -1,0 +1,16 @@
+model:
+    w_focal: 0.9
+    ws_loss:
+        box: 1.
+        
+net:
+    returned_layers: [1, 2]
+    base_anchor_shapes: [[120,100,30],[160,160,50],[100,80,30]]
+    conv1_t_stride: [2, 2, 1]
+    n_input_channels: 2
+    spatial_dims: 3
+    balanced_sampler_pos_fraction: 0.5
+    score_thresh: 0.02
+    nms_thresh: 0.22
+    val_patch_size: [512,512,208]
+

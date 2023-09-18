@@ -1,0 +1,6 @@
+dataset:
+    path: ./data/MICCAI_CAS_2023.json
+    batch_size: 4
+    num_cache_train: 10
+    num_cache_val: 4
+    num_cache_test: 4

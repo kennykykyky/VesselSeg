@@ -1,0 +1,48 @@
+exp:
+    name: 05_00_testdetection
+    names_exp_delete: ['tmp', 'train_05_00_testdetection']
+    idx_device: 0
+    customize_dataloader: True
+
+    train:
+        path_model_trained: null
+        batch_size: 2
+        select_mods: False
+        n_epochs: 2000
+        optimizer:
+            name: adam
+            lr: 1e-5
+            adam:
+                weight_decay: 1e-5
+    val:
+        skip_initial_val: True
+        batch_size: 1
+        n_epochs_once: 20
+
+    test:
+        batch_size: 1
+        path_model_trained: null
+
+dataset:
+    name: cowbboxDataset
+    path: ./data/CoW_bbox_nii/CoW_detection.json
+    patch_size: [280, 200, 80]
+    gt_box_mode: xyzxyz
+    num_samples: 1
+    batch_size: 1
+
+model:
+    name: retinanetdetector_model
+    ws_loss:
+        box: 1.
+
+net:
+    returned_layers: [1]
+    base_anchor_shapes: [[180,150,50], [150, 150, 80]]
+    conv1_t_stride: [2, 2, 1]
+    n_input_channels: 2
+    spatial_dims: 3
+    balanced_sampler_pos_fraction: 0.5
+    score_thresh: 0.5
+    nms_thresh: 0.22
+    val_patch_size: [240,240,80]

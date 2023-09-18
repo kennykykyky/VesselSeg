@@ -1,0 +1,43 @@
+exp:
+    name: 07_00_testCoW_gpu0
+    names_exp_delete: ['tmp', 'train_07_00_testCoW_gpu0']
+    idx_device: 0
+    customize_dataloader: True
+    nnunet_result: 
+        path: /home/kaiyu/project/nnUNet_dataset/nnUNet_results/Dataset302_COWMRA/nnUNetTrainer__nnUNetPlans__3d_fullres
+        fold: 0
+        model: 3d_fullres
+        weights: ./save/CoW_Semantic_nnUnet_0908.pth
+
+    train:
+        path_model_trained: null
+        batch_size: 4
+        select_mods: False
+        n_epochs: 200
+        optimizer:
+            name: adam
+            lr: 1e-5
+            adam:
+                weight_decay: 1e-5
+    val:
+        skip_initial_val: False
+        batch_size: 1
+        n_epochs_once: 5
+
+    test:
+        batch_size: 1
+        path_model_trained: null
+
+dataset:
+    name: miccaicowsemanticDataset
+    path: ./data/CoW_Semantic_ROI/CoW_Semantic_ROI.json
+    num_cache_train: 70
+    num_cache_val: 20
+    num_cache_test: 10
+    num_samples: 4
+
+model:
+    name: nntopo_model
+    ws_loss:
+        dice: 0.99
+        topo: 0.01

@@ -267,9 +267,6 @@ class nnUNetModel(nn.Module):
 
                     if mode in ['val', 'test']:
 
-                        # print time
-
-                        # self.metrics_iter['ahd'] = compute_average_surface_distance(self.output['mask_onehot'], self.output['gt'], include_background=False, symmetric=True, spacing = self.output['spacing']).item()
                         self.metrics_iter['ahd'], self.metrics_iter['ahd_s'] = ahdgpu_metric(self.output['mask_onehot'], self.imgs, self.output['gt'], self.output['spacing'], self.output['s_bbox'])
 
                         # self.metrics_iter['ahd'], self.metrics_iter['ahd_s'] = ahd_metric(self.output['mask'].detach().cpu().numpy().squeeze(),
@@ -295,10 +292,10 @@ class nnUNetModel(nn.Module):
         if self.cfg.exp.mode == 'test':
 
             # filter the vessels around outside ICA at the first several z-slices
-            if self.imgs.shape[-1]/self.imgs.shape[-3] < 3.5:
-                case_id = self.output['image_meta_dict']['filename_or_obj'][0].split('/')[-1].split('.')[0]
-                if case_id not in ['013', '020', '029', '031']:
-                    self.output['mask'] = self.filter_vessel(self.output['mask']).to(torch.int64)
+            # if self.imgs.shape[-1]/self.imgs.shape[-3] < 3.5:
+            #     case_id = self.output['image_meta_dict']['filename_or_obj'][0].split('/')[-1].split('.')[0]
+            #     if case_id not in ['013', '020', '029', '031']:
+            #         self.output['mask'] = self.filter_vessel(self.output['mask']).to(torch.int64)
 
             if self.cfg.exp.test.classification_curve.enable:
                 self.gt_roc.append(seg_gt.cpu().numpy())
@@ -345,10 +342,16 @@ class nnUNetModel(nn.Module):
             if self.cfg.exp.test.save_seg.enable:
                 # save image as nii file
                 seg = self.output['mask'].detach().cpu().numpy().squeeze().astype(np.uint8)
+                baseid = self.output['image_meta_dict']['filename_or_obj'][0].split('/')[-1].split('.')[0]
                 seg = np.transpose(seg, (1, 2, 0))
+
+                # flip the last axis of seg only for CoW data
+                if self.cfg.exp.test.save_seg.flip:
+                    seg = np.flip(seg, axis=2)
+
                 seg = nib.Nifti1Image(seg, np.eye(4))
                 # save the seg file with the same name as in the image_meta_dict
-                nib.save(seg, os.path.join(self.cfg.var.obj_operator.path_exp, self.output['image_meta_dict']['filename_or_obj'][0].split('/')[-1].split('.')[0] + '.nii.gz'))
+                nib.save(seg, os.path.join(self.cfg.var.obj_operator.path_exp, baseid + '.nii.gz'))
             
             # save the metrics in text file
             with open(os.path.join(self.cfg.var.obj_operator.path_exp, 'metrics.txt'), 'a') as f:

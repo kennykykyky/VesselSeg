@@ -1,0 +1,48 @@
+exp:
+    name: 03_11_inferCoW
+    names_exp_delete: ['tmp', 'test_03_11_inferCoW']
+    idx_device: 0
+    customize_dataloader: True
+    mode: test
+    nnunet_result: 
+        path: /home/kaiyu/project/nnUNet_dataset/nnUNet_results/Dataset301_SMRATOF/nnUNetTrainer__nnUNetPlans__3d_fullres
+        fold: 0
+        model: 3d_fullres
+        weights: ./save/SMRA_nnUnet.pth
+
+    train:
+        path_model_trained: null
+        batch_size: 2
+        select_mods: False
+        optimizer:
+            name: adam
+            lr: 3e-4
+            adam:
+                weight_decay: 1e-5
+    val:
+        skip_initial_val: True
+        batch_size: 1
+        n_epochs_once: 5
+
+    test:
+        batch_size: 1
+        path_model_trained: /home/kaiyu/project/VesselSeg/save/train_03_10_DTACE_gpu2_2023-08-07_15-03-15/checkpoints/model_epoch83.pth
+        metrics_all_cases:
+            enable: True
+        save_seg:
+            flip: True
+            enable: True
+dataset:
+    name: miccaimonaiDataset
+    path: /home/kaiyu/project/VesselSeg/data/CoW_artseg_inference/CoW_wholebrain_artseg.json
+    num_cache_train: 0
+    num_cache_val: 0
+    num_cache_test: 110
+    num_samples: 2
+
+model:
+    name: nnunet_model
+    ws_loss:
+        cldiceloss: 1
+        focal: 0
+    w_focal: 0.5

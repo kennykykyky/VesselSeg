@@ -10,6 +10,7 @@ import pdb
 from core.utils.img import croppatch3d
 import nibabel as nib
 import torch.distributed as dist
+from monai.transforms import Randomizable
 
 from monai.transforms import (
     AsDiscrete,
@@ -26,6 +27,9 @@ from monai.transforms import (
     RandRotate90d,
     ResizeWithPadOrCropd,
     EnsureTyped,
+    Randomizable,
+    Transform,
+    MapTransform,
 )
 
 from monai.data import (
@@ -35,8 +39,10 @@ from monai.data import (
     PersistentDataset,
     load_decathlon_datalist,
 )
+from monai.data.utils import no_collation
 
-class miccaimonaiDataset:
+
+class miccaicowsemanticDataset:
     def __new__(cls, cfg, mode):
         
         datapath = cfg.dataset.path
@@ -63,14 +69,13 @@ class miccaimonaiDataset:
                             keys=["image"],
                             subtrahend=dataset_fingerprint["foreground_intensity_properties_per_channel"][fold]["mean"],
                             divisor=dataset_fingerprint["foreground_intensity_properties_per_channel"][fold]["std"],),
-                        # CropForegroundd(keys=["image", "label"], source_key="image"),
-                        Orientationd(keys=["image", "label"], axcodes="ILP"),
+                        Orientationd(keys=["image", "label"], axcodes="SRA"),
+                        Spacingd(
+                            keys=["image", "label"],
+                            pixdim=plans['configurations'][model]['spacing'],
+                            mode=("bilinear", "nearest"),
+                        ),
                         ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=plans['configurations'][model]['patch_size']),
-                        # Spacingd(
-                        #     keys=["image", "label"],
-                        #     pixdim=plans['configurations'][model]['spacing'],
-                        #     mode=("bilinear", "nearest"),
-                        # ),
                         EnsureTyped(keys=["image", "label"], track_meta=False),
                         RandCropByPosNegLabeld(
                             keys=["image", "label"],
@@ -101,11 +106,11 @@ class miccaimonaiDataset:
                         #     max_k=3,
                         #     spatial_axes=(1,2),
                         # ),
-                        # RandShiftIntensityd(
-                        #     keys=["image"],
-                        #     offsets=0.10,
-                        #     prob=0.50,
-                        # ),
+                        RandShiftIntensityd(
+                            keys=["image"],
+                            offsets=0.10,
+                            prob=0.50,
+                        ),
                     ]
                 )
             
@@ -113,36 +118,55 @@ class miccaimonaiDataset:
                             data=datalist,
                             transform=cls.transform,
                             cache_num = cfg.dataset.num_cache_train,
+                            num_init_workers=8,
                         )
-
-            dataloader = ThreadDataLoader(dataset, num_workers=0, batch_size=cfg.exp.train.batch_size, shuffle=True)
+            dataloader = ThreadDataLoader(dataset, num_workers=8, batch_size=cfg.exp.train.batch_size, shuffle=True,)
             
-        elif mode in ['val', 'test']:
+        # If load numpy file, you should use orientation SRA
+        # If load nii file, you should use orientation ILP
+        elif mode == 'val':
             cls.transform = Compose(
                     [
-                        LoadImaged(keys=["image", "label"], ensure_channel_first=True, image_only=False, allow_missing_keys=True),
+                        LoadImaged(keys=["image", "label"], ensure_channel_first=True, image_only=False),
                         NormalizeIntensityd(
                             keys=["image"],
                             subtrahend=dataset_fingerprint["foreground_intensity_properties_per_channel"][fold]["mean"],
                             divisor=dataset_fingerprint["foreground_intensity_properties_per_channel"][fold]["std"],),
-                        # CropForegroundd(keys=["image", "label"], source_key="image"),
-                        # ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=plans['configurations'][model]['patch_size']),
-                        Orientationd(keys=["image", "label"], axcodes="ILP", allow_missing_keys=True),
-                        # Spacingd(
-                        #     keys=["image", "label"],
-                        #     pixdim=plans['configurations'][model]['spacing'],
-                        #     mode=("bilinear", "nearest"),
-                        # ),
+                        Orientationd(keys=["image", "label"], axcodes="SRA"),
+                        ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=plans['configurations'][model]['patch_size']),
+                        Spacingd(
+                            keys=["image", "label"],
+                            pixdim=plans['configurations'][model]['spacing'],
+                            mode=("bilinear", "nearest"),
+                        ),
+                        EnsureTyped(keys=["image", "label"], track_meta=False),
+                    ]
+                )
+            val_files = load_decathlon_datalist(datapath, True, "validation")
+
+            dataset = SmartCacheDataset(data=val_files, transform=cls.transform, cache_num = cfg.dataset.num_cache_val, num_init_workers=8)
+            dataloader = ThreadDataLoader(dataset, num_workers=8, batch_size=cfg.exp[mode].batch_size,)
+
+        elif mode == 'test':
+            cls.transform = Compose(
+                    [
+                        LoadImaged(keys=["image", "label"], ensure_channel_first=True, image_only=False),
+                        NormalizeIntensityd(
+                            keys=["image"],
+                            subtrahend=dataset_fingerprint["foreground_intensity_properties_per_channel"][fold]["mean"],
+                            divisor=dataset_fingerprint["foreground_intensity_properties_per_channel"][fold]["std"],),
+                        Spacingd(
+                            keys=["image", "label"],
+                            pixdim=plans['configurations'][model]['spacing'],
+                            mode=("bilinear", "nearest"),
+                        ),
+                        ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=plans['configurations'][model]['patch_size']),
+                        Orientationd(keys=["image", "label"], axcodes="SRA", allow_missing_keys=True),
                         EnsureTyped(keys=["image", "label"], track_meta=False, allow_missing_keys=True),
                     ]
                 )
-            if mode == 'val':
-                val_files = load_decathlon_datalist(datapath, True, "validation")
-                dataset = SmartCacheDataset(data=val_files, transform=cls.transform, cache_num = cfg.dataset.num_cache_val)
-            elif mode == 'test':
-                val_files = load_decathlon_datalist(datapath, True, "test")
-                dataset = SmartCacheDataset(data=val_files, transform=cls.transform, cache_num = cfg.dataset.num_cache_test)
-
-            dataloader = ThreadDataLoader(dataset, num_workers=0, batch_size=cfg.exp[mode].batch_size)
+            test_files = load_decathlon_datalist(datapath, True, "test")
+            dataset = SmartCacheDataset(data=test_files, transform=cls.transform, cache_num = cfg.dataset.num_cache_test, shuffle=False, num_init_workers=8)
+            dataloader = ThreadDataLoader(dataset, num_workers=8, batch_size=cfg.exp[mode].batch_size)
         
         return dataset, dataloader
